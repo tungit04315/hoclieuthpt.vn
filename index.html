@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Thư viện số THPT</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://unpkg.com/lucide@0.383.0/dist/umd/lucide.min.js"></script>
+</head>
+
+<body>
+  <div id="app">
+
+    <!-- 1. ĐĂNG NHẬP -->
+    <section class="screen active login" id="login">
+      <div class="lhero">
+        <span class="orb o1"></span><span class="orb o2"></span>
+        <div class="logo"><i data-lucide="book-open"></i></div>
+        <h1>Thư viện số THPT</h1>
+        <p class="slogan">Tri thức hôm nay – Kiến tạo tương lai</p>
+      </div>
+      <form class="lform" id="loginForm" novalidate>
+        <h2>Chào mừng trở lại</h2>
+        <p class="lsub">Đăng nhập để học tập, tra cứu và quản lý học liệu.</p>
+        <label class="flabel" for="acc">Tài khoản</label>
+        <div class="field" id="accBox"><i data-lucide="user"></i><input id="acc" autocomplete="username"
+            autocapitalize="none" spellcheck="false" aria-describedby="accBoxErr"
+            placeholder="SĐT / Email / Mã học sinh"></div>
+        <p class="ferr" id="accBoxErr" role="alert" hidden></p>
+        <label class="flabel" for="pw">Mật khẩu</label>
+        <div class="field" id="pwBox"><i data-lucide="lock"></i><input id="pw" type="password"
+            autocomplete="current-password" aria-describedby="pwBoxErr" placeholder="Nhập mật khẩu"><button
+            type="button" class="ic" data-eye="pw" aria-label="Hiện mật khẩu" aria-pressed="false"><i
+              data-lucide="eye"></i></button></div>
+        <p class="ferr" id="pwBoxErr" role="alert" hidden></p>
+        <p class="caps" id="capsWarn" hidden><i data-lucide="alert-triangle"></i>Caps Lock đang bật</p>
+        <div class="between lopt"><label class="chk"><input type="checkbox" checked> Ghi nhớ đăng nhập</label><a
+            href="#" class="link" data-toast="Đã gửi hướng dẫn đặt lại mật khẩu">Quên mật khẩu?</a></div>
+        <button class="btn sp" id="loginBtn" type="submit">Đăng nhập</button>
+        <div class="demo" id="demoBox" hidden><span>Dùng thử nhanh</span>
+          <div><button type="button" data-demo="HS0002|Student@12345">Học sinh</button><button type="button"
+              data-demo="gv01@thuvien.vn|Teacher@12345">Giáo viên</button><button type="button"
+              data-demo="admin@thuvien.vn|Admin@12345">Quản trị</button></div>
+        </div>
+        <p class="switch">Chưa có tài khoản? <a class="link" data-go="register" tabindex="0" role="link">Đăng ký
+            ngay</a></p>
+      </form>
+    </section>
+
+    <!-- 1b. ĐĂNG KÝ (đơn giản: không cần duyệt, không cần OTP) -->
+    <section class="screen login" id="register">
+      <div class="lhero sm">
+        <span class="orb o1"></span><span class="orb o2"></span>
+        <button type="button" class="lback" data-go="login" aria-label="Quay lại đăng nhập"><i
+            data-lucide="arrow-left"></i></button>
+        <div class="logo"><i data-lucide="user-plus"></i></div>
+        <h1>Tạo tài khoản</h1>
+        <p class="slogan">Đăng ký nhanh bằng Email hoặc Số điện thoại</p>
+      </div>
+      <form class="lform" id="regForm" novalidate>
+        <label class="flabel" for="regAcc">Email hoặc số điện thoại</label>
+        <div class="field" id="regAccBox"><i data-lucide="user"></i><input id="regAcc" autocomplete="username"
+            autocapitalize="none" spellcheck="false" aria-describedby="regAccBoxErr"
+            placeholder="vd: hocsinh@email.com / 0912345678"></div>
+        <p class="ferr" id="regAccBoxErr" role="alert" hidden></p>
+        <label class="flabel" for="regPw">Mật khẩu</label>
+        <div class="field" id="regPwBox"><i data-lucide="lock"></i><input id="regPw" type="password"
+            autocomplete="new-password" aria-describedby="regPwBoxErr" placeholder="Tối thiểu 6 ký tự"><button
+            type="button" class="ic" data-eye="regPw" aria-label="Hiện mật khẩu" aria-pressed="false"><i
+              data-lucide="eye"></i></button></div>
+        <div class="meter" id="pwMeter" hidden><i></i><i></i><i></i><i></i><span id="pwMeterTxt"></span></div>
+        <p class="ferr" id="regPwBoxErr" role="alert" hidden></p>
+        <label class="flabel" for="regPw2">Nhập lại mật khẩu</label>
+        <div class="field" id="regPw2Box"><i data-lucide="lock"></i><input id="regPw2" type="password"
+            autocomplete="new-password" aria-describedby="regPw2BoxErr" placeholder="Nhập lại mật khẩu"><button
+            type="button" class="ic" data-eye="regPw2" aria-label="Hiện mật khẩu" aria-pressed="false"><i
+              data-lucide="eye"></i></button></div>
+        <p class="ferr" id="regPw2BoxErr" role="alert" hidden></p>
+        <button class="btn sp" id="regBtn" type="submit">Đăng ký</button>
+        <p class="switch">Đã có tài khoản? <a class="link" data-go="login" tabindex="0" role="link">Đăng nhập</a></p>
+      </form>
+    </section>
+
+    <!-- 2. TRANG CHỦ -->
+    <section class="screen pad" id="home">
+      <header class="top">
+        <div>
+          <h2 id="greet">Xin chào 👋</h2>
+          <p class="cap" id="greetSub">Học tốt hôm nay, vững vàng tương lai!</p>
+        </div>
+        <div class="top-r"><button class="ic" data-act="notif" aria-label="Thông báo" style="position:relative"><i
+              data-lucide="bell"></i><em id="unread" hidden
+              style="position:absolute;top:4px;right:4px;min-width:16px;height:16px;border-radius:8px;background:var(--danger);color:#fff;font:600 10px/16px Inter;text-align:center;font-style:normal"></em></button><button
+            class="avatar" id="avTop" data-go="account" aria-label="Tài khoản">?</button></div>
+      </header>
+      <div class="search" data-go="search"><i data-lucide="search"></i><span>Bạn đang tìm học liệu gì?</span><i
+          data-lucide="mic" class="pr"></i><b class="ai" data-go="ai" role="button" tabindex="0"
+          aria-label="Hỏi trợ lý AI">AI</b></div>
+      <div class="tabs" id="homeTabs"><button class="on" data-htab="over">Tổng quan</button><button
+          data-htab="intro">Giới thiệu</button><button data-htab="guide">Hướng dẫn</button></div>
+      <div id="hpOver">
+        <button class="alert" id="dueBanner" data-go="loans" hidden></button>
+        <div class="quick">
+          <button data-go="search"><span class="qi" style="background:#EEEAFE;color:#5B4FD8"><i
+                data-lucide="search"></i></span>Tìm kiếm</button>
+          <button data-go="library"><span class="qi" style="background:#E6F6EE;color:#2FA56E"><i
+                data-lucide="library"></i></span>Học liệu số</button>
+          <button data-go="loans"><span class="qi" style="background:#FFF1E2;color:#E0852A"><i
+                data-lucide="book-marked"></i></span>Mượn/Trả</button>
+          <button data-go="account"><span class="qi" style="background:#E8F0FF;color:#4A7BE8"><i
+                data-lucide="credit-card"></i></span>Thẻ TV</button>
+        </div>
+        <div class="between sec">
+          <h3>Tìm theo khối lớp</h3><a class="link" data-go="search">Xem thêm</a>
+        </div>
+        <div class="chips" id="gradeChips"></div>
+        <div class="feat">
+          <button class="fcard" style="background:#EEEAFE" data-hgo="intro"><i data-lucide="landmark"></i><b>Giới
+              thiệu<br>Trường & Thư viện</b><i data-lucide="arrow-right" class="arr"></i></button>
+          <button class="fcard" style="background:#E6F6EE" data-hgo="guide"><i data-lucide="book-open-check"
+              style="color:#2FA56E"></i><b>Hướng dẫn<br>sử dụng thư viện</b><i data-lucide="arrow-right"
+              class="arr"></i></button>
+        </div>
+        <div class="between sec">
+          <h3>Học liệu đề xuất cho bạn</h3><a class="link" data-go="library">Xem tất cả ›</a>
+        </div>
+        <div class="grid2" id="homeGrid"></div>
+      </div>
+      <div id="hpIntro" hidden></div>
+      <div id="hpGuide" hidden></div>
+    </section>
+
+    <!-- 3. TÌM KIẾM AI -->
+    <section class="screen pad" id="search">
+      <header class="bar"><button class="ic" data-back aria-label="Quay lại"><i data-lucide="chevron-left"></i></button>
+        <h2>Tìm kiếm</h2><button class="ic" data-go="ai" aria-label="Hỏi trợ lý AI"><i
+            data-lucide="sparkles"></i></button>
+      </header>
+      <div class="search live"><i data-lucide="search"></i><input id="q" aria-label="Từ khóa"
+          placeholder="Nhập từ khóa…"><i data-lucide="mic" class="pr"></i></div>
+      <div class="aicard" id="aiCard"></div>
+      <div class="between filt"><button class="ghost" id="filterBtn"><i data-lucide="filter"></i>Bộ lọc <em
+            id="fcount">0</em></button><button class="ghost" id="sortBtn"><i data-lucide="arrow-up-down"></i>Sắp
+          xếp</button></div>
+      <div id="results"></div>
+    </section>
+
+    <!-- 3b. TRỢ LÝ AI (hỏi đáp tìm học liệu; gửi yêu cầu cho quản trị viên khi không có) -->
+    <section class="screen" id="ai">
+      <header class="bar"><button class="ic" data-back aria-label="Quay lại"><i data-lucide="chevron-left"></i></button>
+        <h2>Trợ lý AI</h2><button class="ic" id="aiClear" aria-label="Xóa cuộc trò chuyện"><i
+            data-lucide="trash-2"></i></button>
+      </header>
+      <div id="aiLog" aria-live="polite"></div>
+      <form class="aiform" id="aiForm" autocomplete="off"><input id="aiInput" maxlength="200" aria-label="Câu hỏi"
+          placeholder="Hỏi về môn, khối, bài tập, đề thi… (gõ không dấu cũng được)"><button class="send" type="submit"
+          aria-label="Gửi"><i data-lucide="send"></i></button></form>
+    </section>
+
+    <!-- 4. CHI TIẾT -->
+    <section class="screen pad" id="detail">
+      <header class="bar"><button class="ic" data-back aria-label="Quay lại"><i
+            data-lucide="chevron-left"></i></button><span></span>
+        <div><button class="ic" id="dBm" aria-label="Lưu"><i data-lucide="bookmark"></i></button><button class="ic"
+            data-toast="Tùy chọn khác" aria-label="Thêm"><i data-lucide="more-vertical"></i></button></div>
+      </header>
+      <div id="detailBody"></div>
+    </section>
+
+    <!-- 5. TỦ SÁCH -->
+    <section class="screen pad" id="library">
+      <header class="bar left">
+        <h2>Học liệu số</h2>
+      </header>
+      <div class="tabs"><button class="on" data-tab="all">Tất cả</button><button data-tab="fav">Yêu
+          thích</button><button data-tab="hist">Đã xem</button></div>
+      <div id="libList"></div>
+    </section>
+
+    <!-- MƯỢN / TRẢ SÁCH -->
+    <section class="screen pad" id="loans">
+      <header class="bar left">
+        <h2>Mượn / Trả sách</h2>
+      </header>
+      <div class="tabs"><button class="on" data-ltab="cur">Đang mượn</button><button data-ltab="find">Mượn
+          sách</button><button data-ltab="his">Lịch sử</button></div>
+      <div class="field" id="bookQBox" hidden><i data-lucide="search"></i><input id="bookQ" aria-label="Tìm sách"
+          placeholder="Tìm tên sách, tác giả…"></div>
+      <p class="cap" id="loanSum"></p>
+      <div id="loanList"></div>
+    </section>
+
+    <!-- THẺ THƯ VIỆN / TÀI KHOẢN -->
+    <section class="screen pad" id="account">
+      <header class="bar left">
+        <h2>Thẻ thư viện / Tài khoản</h2>
+      </header>
+      <div class="lcard" id="libCard" hidden>
+        <div class="lc-top"><i data-lucide="library"></i><b>THẺ THƯ VIỆN THPT</b></div>
+        <h3 id="cardName">—</h3>
+        <p id="cardCls"></p>
+        <div class="lc-row"><span>Mã thẻ<b id="cardNo">—</b></span><span>Hạn thẻ<b id="cardExp">—</b></span></div>
+        <div class="barcode"></div>
+        <p class="lc-stat" id="cardStat"></p>
+      </div>
+      <div class="acc"><span class="avatar big" id="avBig">?</span><b id="accName">—</b>
+        <p class="cap" id="accSub"></p>
+      </div>
+      <div class="stats" id="accStats" hidden></div>
+      <div id="accMenu">
+        <button class="menu" data-acc="profile"><i data-lucide="user"></i>Thông tin cá nhân</button>
+        <button class="menu" data-acc="password"><i data-lucide="lock"></i>Đổi mật khẩu</button>
+        <button class="menu" data-acc="loans"><i data-lucide="book-marked"></i>Sách đang mượn</button>
+        <button class="menu" data-acc="history"><i data-lucide="clock"></i>Lịch sử mượn/trả</button>
+        <button class="menu" data-acc="saved"><i data-lucide="bookmark"></i>Học liệu đã lưu</button>
+        <button class="menu" data-acc="notif"><i data-lucide="bell"></i>Thông báo</button>
+        <button class="menu" data-acc="settings"><i data-lucide="settings"></i>Cài đặt nhắc nhở</button>
+        <button class="menu" data-acc="help"><i data-lucide="book-open"></i>Quy định mượn sách</button>
+      </div>
+      <button class="menu" data-logout><i data-lucide="log-out"></i>Đăng xuất</button>
+    </section>
+
+    <!-- 6. GIÁO VIÊN -->
+    <section class="screen pad nonav" id="teacher">
+      <header class="top">
+        <div class="who"><span class="avatar" id="tAv">T</span>
+          <div>
+            <h2 class="sm" id="tHello">Chào thầy/cô!</h2>
+            <p class="cap">Cùng lan tỏa tri thức</p>
+          </div>
+        </div><button class="ic" id="tSet" aria-label="Cài đặt"><i data-lucide="settings"></i></button>
+      </header>
+      <div class="grid2 dash">
+        <button class="dcard" style="background:#EEEAFE" id="tcMine"><i data-lucide="folder"
+            style="color:#5B4FD8"></i><b>Học liệu của tôi</b><span id="tcMineN">… tài liệu</span></button>
+        <button class="dcard" style="background:#E6F6EE" id="addDoc"><i data-lucide="plus"
+            style="color:#2FA56E"></i><b>Thêm tài liệu</b><span>Đăng học liệu mới</span></button>
+        <button class="dcard" style="background:#FFF1E2" id="tcPend"><i data-lucide="clock"
+            style="color:#FFA447"></i><b>Chờ kiểm duyệt</b><span id="tcPendN">… tài liệu</span></button>
+        <button class="dcard" style="background:#E8F0FF" id="tcStat"><i data-lucide="bar-chart-3"
+            style="color:#4A7BE8"></i><b>Thống kê</b><span>Xem báo cáo</span></button>
+      </div>
+      <form id="tForm" novalidate>
+        <h3 id="tFormTitle">Thêm học liệu mới</h3>
+        <input type="hidden" id="editId">
+        <label>Tên tài liệu *<input name="t" placeholder="Nhập tên tài liệu"></label>
+        <label>Tác giả *<input name="a" placeholder="Nhập tên tác giả"></label>
+        <div class="two"><label>Môn học *<select name="s">
+              <option value="">Chọn môn học</option>
+              <option>Toán</option>
+              <option>Vật lý</option>
+              <option>Hóa học</option>
+              <option>Sinh học</option>
+              <option>Tin học</option>
+              <option>Ngữ văn</option>
+              <option>Tiếng Anh</option>
+            </select></label>
+          <label>Khối lớp *<select name="g">
+              <option value="">Chọn khối lớp</option>
+              <option>10</option>
+              <option>11</option>
+              <option>12</option>
+            </select></label>
+        </div>
+        <label>Chủ đề *<input name="c" placeholder="Ví dụ: Hàm số, Vòng lặp…"></label>
+        <label>Loại tài liệu *<select name="ty">
+            <option value="">Chọn loại tài liệu</option>
+            <option value="VIDEO">Video bài giảng</option>
+            <option value="DOCUMENT">Tài liệu học tập</option>
+            <option value="EXERCISE">Bài tập</option>
+            <option value="EXAM">Đề thi</option>
+            <option value="SUMMARY">Tài liệu tóm tắt</option>
+          </select></label>
+        <label><span id="uLabel">Link tài liệu / video *</span><input name="u" type="url" inputmode="url"
+            placeholder="https://…"></label>
+        <p class="cap" id="uHint">Dán đường dẫn YouTube, Vimeo, Google Drive, OneDrive hoặc trang web chứa tài liệu. Hãy
+          bảo đảm link ở chế độ ai có link cũng xem được.</p>
+        <label>Mô tả<textarea name="d" data-opt rows="3" placeholder="Nhập mô tả chi tiết..."></textarea></label>
+        <div class="two"><button type="button" class="btn alt" id="draft">Lưu nháp</button><button type="submit"
+            class="btn" id="send">Gửi kiểm duyệt</button></div>
+      </form>
+    </section>
+
+    <!-- 7. QUẢN TRỊ -->
+    <section class="screen pad nonav" id="admin">
+      <header class="top">
+        <div class="who"><span class="avatar">A</span>
+          <div>
+            <h2 class="sm">Quản trị viên</h2>
+            <p class="cap">Tổng quan hệ thống</p>
+          </div>
+        </div><button class="ic" id="aSet" aria-label="Cài đặt"><i data-lucide="settings"></i></button>
+      </header>
+      <div class="grid2 dash">
+        <div class="dcard" data-adm="res" style="background:#EEEAFE"><i data-lucide="files"
+            style="color:#5B4FD8"></i><span>Tổng tài liệu</span><b class="big" id="aTotal">…</b></div>
+        <div class="dcard" data-adm="users" style="background:#E6F6EE"><i data-lucide="users"
+            style="color:#2FA56E"></i><span>Tài khoản</span><b class="big" id="aUsers">…</b></div>
+        <div class="dcard" data-adm="queue" style="background:#FFF1E2"><i data-lucide="clock"
+            style="color:#FFA447"></i><span>Chờ duyệt</span><b class="big" id="aPending">…</b></div>
+        <div class="dcard" data-adm="stats" style="background:#E8F0FF"><i data-lucide="eye"
+            style="color:#4A7BE8"></i><span>Lượt truy cập</span><b class="big" id="aViews">…</b></div>
+      </div>
+      <button class="menu" data-adm="users"><i data-lucide="users"></i>Quản lý tài khoản</button>
+      <button class="menu" data-adm="res"><i data-lucide="file-text"></i>Quản lý tài liệu</button>
+      <button class="menu" data-adm="cat"><i data-lucide="layout-list"></i>Quản lý danh mục</button>
+      <button class="menu" id="modBtn" data-adm="queue"><i data-lucide="check-circle"></i>Kiểm duyệt tài liệu<em
+          class="badge org" id="aQ" hidden style="margin-left:auto"></em></button>
+      <button class="menu" data-adm="req"><i data-lucide="inbox"></i>Yêu cầu tài liệu<em class="badge org" id="aReq"
+          hidden style="margin-left:auto"></em></button>
+      <button class="menu" data-adm="content"><i data-lucide="layout-dashboard"></i>Nội dung trang chủ</button>
+      <button class="menu" data-adm="stats"><i data-lucide="bar-chart-3"></i>Thống kê</button>
+      <button class="menu" data-adm="log"><i data-lucide="clock"></i>Nhật ký hoạt động</button>
+    </section>
+
+    <!-- BOTTOM NAV -->
+    <nav id="nav" aria-label="Điều hướng chính">
+      <button data-go="home" class="on"><i data-lucide="home"></i>Trang chủ</button>
+      <button data-go="search"><i data-lucide="search"></i>Tìm kiếm</button>
+      <button data-go="library"><i data-lucide="library"></i>Học liệu số</button>
+      <button data-go="loans"><i data-lucide="book-marked"></i>Mượn/Trả</button>
+      <button data-go="account"><i data-lucide="credit-card"></i>Thẻ/Tài khoản</button>
+    </nav>
+
+    <!-- BOTTOM SHEET (lọc / thông báo) -->
+    <div id="sheetBg"></div>
+    <div id="sheet" role="dialog" aria-modal="true"></div>
+    <div id="toast" role="status"></div>
+  </div>
+  <script type="module" src="js/app.js"></script>
+</body>
+
+</html>

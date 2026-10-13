@@ -1,0 +1,24 @@
+{
+  "name": "thu-vien-so-functions",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.js",
+  "engines": { "node": "20" },
+  "scripts": {
+    "test": "jest test/unit",
+    "test:rules": "jest test/rules --runInBand",
+    "test:e2e": "jest test/e2e --runInBand",
+    "seed": "node scripts/seed.js",
+    "emulators": "firebase emulators:start"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.2.0",
+    "firebase-functions": "^5.0.1"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.3",
+    "firebase": "^10.12.0",
+    "jest": "^29.7.0"
+  },
+  "jest": { "testEnvironment": "node", "testTimeout": 30000 }
+}

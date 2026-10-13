@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": { "test:client": "node tests/ai-search.test.mjs" }
+}

@@ -1,0 +1,19 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // File học liệu: KHÔNG ai đọc trực tiếp; tải xuống chỉ qua signed URL do Cloud Function cấp.
+    // Admin được tải lên (giới hạn loại + dung lượng); Function sẽ kiểm tra lại magic bytes và xóa file sai.
+    match /resources/{rid}/{file} {
+      allow read: if false;
+      allow create: if request.auth != null && request.auth.token.role == 'ADMIN'
+        && request.resource.size < 100 * 1024 * 1024
+        && request.resource.contentType in [
+          'application/pdf', 'application/msword', 'application/vnd.ms-powerpoint',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'video/mp4', 'audio/mpeg', 'image/jpeg', 'image/png'];
+      allow update, delete: if false;
+    }
+    match /{allPaths=**} { allow read, write: if false; }
+  }
+}
