@@ -273,9 +273,12 @@
             <option value="EXAM">Đề thi</option>
             <option value="SUMMARY">Tài liệu tóm tắt</option>
           </select></label>
-        <label><span id="uLabel">Link tài liệu / video *</span><input name="u" type="url" inputmode="url"
+        <label><span id="vLabel">Link video YouTube (không bắt buộc)</span><input name="v" data-opt type="url" inputmode="url"
+            placeholder="https://www.youtube.com/watch?v=…"></label>
+        <p class="cap" id="vHint">Học sinh bấm "Xem học liệu" sẽ mở link này. Có thể để trống nếu không có video.</p>
+        <label><span id="uLabel">Link tài liệu *</span><input name="u" type="url" inputmode="url"
             placeholder="https://…"></label>
-        <p class="cap" id="uHint">Dán đường dẫn YouTube, Vimeo, Google Drive, OneDrive hoặc trang web chứa tài liệu. Hãy
+        <p class="cap" id="uHint">Dán đường dẫn Google Drive, OneDrive hoặc trang web chứa tài liệu. Học sinh bấm "Tải xuống" sẽ mở link này. Hãy
           bảo đảm link ở chế độ ai có link cũng xem được.</p>
         <label>Mô tả<textarea name="d" data-opt rows="3" placeholder="Nhập mô tả chi tiết..."></textarea></label>
         <div class="two"><button type="button" class="btn alt" id="draft">Lưu nháp</button><button type="submit"

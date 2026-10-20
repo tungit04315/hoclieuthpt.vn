@@ -61,9 +61,12 @@ const RES = RAW.map(([title, sub, grade, type, author, desc, views, ago, dur, to
     files: [{ id: 'f' + (i + 1), name: slug(title) + (isVideo ? '.mp4' : '.pdf'), format: isVideo ? 'MP4' : 'PDF', size: 1048576 * (isVideo ? 38 : 2) }],
   };
 });
-const PENDING = [
-  { id: 'cho-duyet-1', title: 'Đề cương ôn tập Toán 11 (chờ duyệt)', author: 'Cô Lan Anh', subject: 'Toán', grade: '11', fileCount: 1 },
-  { id: 'cho-duyet-2', title: 'Slide bài giảng Hóa hữu cơ (chờ duyệt)', author: 'Cô Mai Phương', subject: 'Hóa học', grade: '11', fileCount: 2 },
+/** Tài liệu mẫu đang chờ duyệt (cùng cấu trúc với tài liệu giáo viên đăng). */
+const SEED_TDOCS = [
+  { id: 'cho-duyet-1', ownerId: 'seed', title: 'Đề cương ôn tập Toán 11', author: 'Cô Lan Anh', subject: 'Toán', grade: '11', topic: 'Đạo hàm', type: 'DOCUMENT',
+    url: 'https://example.com/de-cuong-toan-11', videoUrl: '', description: 'Tổng hợp kiến thức và bài tập trọng tâm học kỳ 1 môn Toán 11.', status: 'PENDING', rejectReason: null, publishedAt: null, updatedAt: '2026-10-18T08:00:00.000Z' },
+  { id: 'cho-duyet-2', ownerId: 'seed', title: 'Slide bài giảng Hóa hữu cơ', author: 'Cô Mai Phương', subject: 'Hóa học', grade: '11', topic: 'Hóa hữu cơ', type: 'SUMMARY',
+    url: 'https://example.com/slide-hoa-huu-co', videoUrl: 'https://www.youtube.com/watch?v=demo-hoa-huu-co', description: 'Slide và video bài giảng mở đầu về hóa học hữu cơ.', status: 'PENDING', rejectReason: null, publishedAt: null, updatedAt: '2026-10-19T08:00:00.000Z' },
 ];
 
 /* ---------- Tài khoản demo ---------- */
@@ -93,15 +96,26 @@ const catAll = (name) => {
   const meta = store.get('catMeta', {}); return [...base, ...store.get('catExtra:' + name, [])].map((x) => ({ ...x, status: meta[name + ':' + x.id] || 'ACTIVE' }));
 };
 const adm = () => { const u = need(); if (u.role !== 'ADMIN') throw err('FORBIDDEN', 'Chỉ quản trị viên được dùng chức năng này'); return u; };
-const tdocs = () => store.get('tdocs', []);
+const tdocs = () => store.get('tdocs', SEED_TDOCS);
 const setTdoc = (id, patch) => { const l = tdocs(); if (!l.some((d) => d.id === id)) return false; store.set('tdocs', l.map((d) => (d.id === id ? { ...d, ...patch } : d))); return true; };
+/** Tài liệu mẫu có thể được admin sửa: thay đổi lưu ở 'resOv:<id>' và phủ lên dữ liệu gốc. */
+const resOv = (id) => store.get('resOv:' + id, null);
+const applyOv = (r) => {
+  const o = resOv(r.id); if (!o) return r;
+  const s = catAll('subjects').find((x) => x.id === o.subjectId), t = catAll('resourceTypes').find((x) => x.id === o.resourceTypeId), g = catAll('grades').find((x) => x.id === o.gradeId);
+  return { ...r, title: o.title, authorName: o.author, description: o.description, onlineUrl: o.url || null, videoUrl: o.videoUrl || null,
+    subjectId: s ? s.id : r.subjectId, subjectName: s ? s.name : r.subjectName, gradeId: g ? g.id : r.gradeId, gradeName: g ? g.name : r.gradeName,
+    resourceTypeId: t ? t.id : r.resourceTypeId, resourceTypeName: t ? t.name : r.resourceTypeName, resourceTypeCode: t ? t.code : r.resourceTypeCode,
+    topicId: o.topic ? (s ? s.id : r.subjectId) + '-' + slug(o.topic) : null, topicName: o.topic || null };
+};
+const RESV = () => RES.map(applyOv);
 const tToRes = (d) => {
   const s = SUBJECTS.find((x) => x.name === d.subject) || SUBJECTS[0], t = TYPES.find((x) => x.code === d.type) || TYPES[4];
   return { id: d.id, title: d.title, description: d.description || '', authorName: d.author, subjectId: s.id, subjectName: s.name, gradeId: d.grade, gradeName: d.grade,
     topicId: d.topic ? s.id + '-' + slug(d.topic) : null, topicName: d.topic || null, resourceTypeId: t.id, resourceTypeName: t.name, resourceTypeCode: t.code, format: 'LINK',
-    durationSeconds: null, viewCount: 0, downloadCount: 0, favoriteCount: 0, publishedAt: d.publishedAt, status: 'PUBLISHED', onlineUrl: d.url, files: [] };
+    durationSeconds: null, viewCount: 0, downloadCount: 0, favoriteCount: 0, publishedAt: d.publishedAt, status: 'PUBLISHED', onlineUrl: d.url, videoUrl: d.videoUrl || null, files: [] };
 };
-const published = () => [...RES.filter((r) => !deletedIds().includes(r.id)), ...tdocs().filter((d) => d.status === 'PUBLISHED').map(tToRes)].filter((r) => r.status === 'PUBLISHED').filter((r) => !hiddenIds().includes(r.id)).map((r) => ({ ...r, viewCount: r.viewCount + (store.get('extraViews:' + r.id, 0)) }));
+const published = () => [...RESV().filter((r) => !deletedIds().includes(r.id)), ...tdocs().filter((d) => d.status === 'PUBLISHED').map(tToRes)].filter((r) => r.status === 'PUBLISHED').filter((r) => !hiddenIds().includes(r.id)).map((r) => ({ ...r, viewCount: r.viewCount + (store.get('extraViews:' + r.id, 0)) }));
 const favSet = () => new Set(mine('bookmarks'));
 const toItem = (r) => ({
   id: r.id, title: r.title, thumbnailUrl: null, summary: String(r.description).slice(0, 160), author: r.authorName,
@@ -115,10 +129,11 @@ const GUIDE_TARGETS = ['home', 'search', 'library', 'loans', 'account'];
 const homeContent = () => ({ introduction: SCHOOL, guide: GUIDE, ...store.get('homeContent', {}) });
 /** Kiểm tra + làm sạch nội dung trang chủ (cùng quy tắc với functions/src/lib/pure.js → normalizeHomeContent). */
 function normalizeHomeContent(input) {
-  const strip = (v) => String(v ?? '').replace(/<[^>]*>/g, '').trim();
-  const txt = (v, name, max, required) => { const c = strip(v); if (required && !c) throw err('VALIDATION_ERROR', `${name} là bắt buộc`); if (c.length > max) throw err('VALIDATION_ERROR', `${name} tối đa ${max} ký tự`); return c; };
+  const strip = (v) => String(v ?? '').replace(/<[^>]*>/g, '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim();
+  const txt = (v, name, max, required) => { if (v !== undefined && v !== null && typeof v !== 'string') throw err('VALIDATION_ERROR', `${name} phải là chuỗi`); const c = strip(v); if (required && !c) throw err('VALIDATION_ERROR', `${name} là bắt buộc`); if (c.length > max) throw err('VALIDATION_ERROR', `${name} tối đa ${max} ký tự`); return c; };
   const lines = (v, name, maxItems, maxLen) => { const a = (Array.isArray(v) ? v : []).map((x) => txt(x, name, maxLen)).filter(Boolean); if (a.length > maxItems) throw err('VALIDATION_ERROR', `${name} tối đa ${maxItems} dòng`); return a; };
   const i = (input && input.introduction) || {}, g = input && input.guide;
+  if (typeof i !== 'object' || Array.isArray(i)) throw err('VALIDATION_ERROR', 'Phần giới thiệu không hợp lệ');
   const email = txt(i.email, 'Email', 120), phone = txt(i.phone, 'Số điện thoại', 30);
   if (email && !EMAIL_RE.test(email)) throw err('VALIDATION_ERROR', 'Email liên hệ không hợp lệ');
   if (phone && !/^[0-9+().\-\s]{6,30}$/.test(phone)) throw err('VALIDATION_ERROR', 'Số điện thoại liên hệ không hợp lệ');
@@ -127,12 +142,28 @@ function normalizeHomeContent(input) {
   if (!Array.isArray(g)) throw err('VALIDATION_ERROR', 'Phần hướng dẫn phải là danh sách mục');
   if (g.length > 20) throw err('VALIDATION_ERROR', 'Tối đa 20 mục hướng dẫn');
   const guide = g.map((x, k) => {
-    if (x.go && !GUIDE_TARGETS.includes(x.go)) throw err('VALIDATION_ERROR', `Mục #${k + 1}: màn hình đích không hợp lệ`);
+    if (!x || typeof x !== 'object') throw err('VALIDATION_ERROR', `Mục hướng dẫn #${k + 1} không hợp lệ`);
+    if (x.go && !GUIDE_TARGETS.includes(x.go)) throw err('VALIDATION_ERROR', `Mục hướng dẫn #${k + 1}: màn hình đích không hợp lệ`);
     const it = { title: txt(x.title, `Tiêu đề mục #${k + 1}`, 120, true), body: txt(x.body, `Nội dung mục #${k + 1}`, 1500, true) };
     if (x.go) { it.go = x.go; it.cta = txt(x.cta, `Nhãn nút mục #${k + 1}`, 40) || 'Mở'; }
     return it;
   });
   return { introduction, guide };
+}
+const YT_RE = /^(www\.|m\.|music\.)?(youtube\.com|youtube-nocookie\.com|youtu\.be)$/i;
+/** Kiểm tra form tài liệu của admin (cùng quy tắc với backend: adminCreateResource / adminUpdateResource). */
+function readAdminDoc(d, draft, hasFiles = false) {
+  const strip = (x) => String(x ?? '').replace(/<[^>]*>/g, '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim();
+  const t = (x, name, max, req) => { if (x !== undefined && x !== null && typeof x !== 'string') throw err('VALIDATION_ERROR', `${name} phải là chuỗi`); const c = strip(x); if (req && !c) throw err('VALIDATION_ERROR', `${name} là bắt buộc`); if (c.length > max) throw err('VALIDATION_ERROR', `${name} tối đa ${max} ký tự`); return c; };
+  const link = (x, name, yt) => { const c = t(x, name, 1000); if (!c) return ''; let u; try { u = new URL(c); } catch { u = null; } if (!u || !/^https?:$/.test(u.protocol)) throw err('VALIDATION_ERROR', `${name} phải là đường dẫn http/https hợp lệ`); if (yt && !YT_RE.test(u.hostname)) throw err('VALIDATION_ERROR', 'Link video phải là đường dẫn YouTube hợp lệ'); return c; };
+  const title = t(d.title, 'Tên tài liệu', 200, true); if (title.length < 3) throw err('VALIDATION_ERROR', 'Tên tài liệu phải có ít nhất 3 ký tự');
+  const o = { title, author: t(d.author, 'Tác giả', 120, !draft), topic: t(d.topic, 'Chủ đề', 100), description: t(d.description, 'Mô tả', 5000), url: link(d.url, 'Link tài liệu'), videoUrl: link(d.videoUrl, 'Link video', true) };
+  const s = catAll('subjects').find((x) => x.id === d.subjectId), g = catAll('grades').find((x) => x.id === d.gradeId), ty = catAll('resourceTypes').find((x) => x.id === d.resourceTypeId);
+  if (!draft || d.subjectId) if (!s) throw err('INVALID_SUBJECT', 'Môn học không hợp lệ');
+  if (!draft || d.gradeId) if (!g) throw err('INVALID_GRADE', 'Khối lớp không hợp lệ');
+  if (!draft || d.resourceTypeId) if (!ty) throw err('INVALID_RESOURCE_TYPE', 'Loại tài liệu không hợp lệ');
+  if (!draft && !o.url && !hasFiles) throw err('VALIDATION_ERROR', 'Vui lòng nhập link tài liệu');
+  return { ...o, author: o.author || 'Quản trị viên', subjectId: s && s.id, subjectName: s ? s.name : '', gradeId: g && g.id, gradeName: g ? g.name : '', resourceTypeId: ty && ty.id, typeCode: ty ? ty.code : 'DOCUMENT' };
 }
 const find = (id) => { const r = published().find((x) => x.id === id); if (!r) throw err('RESOURCE_NOT_FOUND', 'Không tìm thấy học liệu'); return r; };
 const page = (list, { page: p = 1, limit: l = 20 } = {}) => ({ items: list.slice((p - 1) * l, p * l), pagination: { page: p, limit: l, total: list.length, totalPages: Math.max(1, Math.ceil(list.length / l)) } });
@@ -169,7 +200,7 @@ const SCHOOL = {
 };
 const GUIDE = [
   { title: 'Tìm học liệu', body: 'Chạm thanh tìm kiếm, gõ tên bài, môn học hoặc tác giả (có dấu hay không dấu đều được). Dùng bộ lọc để chọn môn, khối lớp và loại tài liệu.', go: 'search', cta: 'Tìm ngay' },
-  { title: 'Xem và tải học liệu', body: 'Mở một học liệu để đọc mô tả, sau đó bấm nút xem. Học liệu có tệp đính kèm có thể tải về; học liệu dạng liên kết sẽ mở trang hoặc video của giáo viên.', go: 'library', cta: 'Mở Học liệu số' },
+  { title: 'Xem và tải học liệu', body: 'Mở một học liệu để đọc mô tả. Bấm Xem học liệu để mở video YouTube do giáo viên đính kèm; bấm Tải xuống để mở link tài liệu. Nếu học liệu chưa có video hoặc tài liệu, ứng dụng sẽ báo cho bạn biết.', go: 'library', cta: 'Mở Học liệu số' },
   { title: 'Lưu học liệu yêu thích', body: 'Chạm biểu tượng dấu trang trên học liệu để lưu. Xem lại trong Học liệu số, tab Yêu thích. Các học liệu bạn đã mở nằm ở tab Đã xem.', go: 'library', cta: 'Xem học liệu đã lưu' },
   { title: 'Mượn sách giấy', body: 'Vào Mượn/Trả, chọn tab Mượn sách, tìm cuốn cần mượn rồi bấm Mượn. Bạn mượn tối đa 3 cuốn cùng lúc, thời hạn 14 ngày.', go: 'loans', cta: 'Mượn sách' },
   { title: 'Gia hạn và trả sách', body: 'Trong tab Đang mượn, bấm Gia hạn để thêm 7 ngày (mỗi cuốn một lần, không áp dụng khi đã quá hạn) hoặc bấm Trả sách khi hoàn trả. Sách quá hạn cần trả trước khi mượn thêm.', go: 'loans', cta: 'Xem sách đang mượn' },
@@ -287,7 +318,7 @@ export const Api = {
   async resource(id) {
     await wait();
     const r = find(id);
-    return { ...toItem(r), description: r.description, onlineUrl: r.onlineUrl, updatedAt: r.publishedAt, files: r.files.map(({ id, name, format, size }) => ({ id, name, format, size })) };
+    return { ...toItem(r), description: r.description, onlineUrl: r.onlineUrl, videoUrl: r.videoUrl || null, updatedAt: r.publishedAt, files: r.files.map(({ id, name, format, size }) => ({ id, name, format, size })) };
   },
   async view(id) {
     const r = find(id);
@@ -386,12 +417,14 @@ export const Api = {
     async save(d = {}) {
       await wait(250); const u = Api.teacher._me(), draft = !!d.draft, v = (k) => String(d[k] ?? '').trim();
       if (v('title').length < 3) throw err('VALIDATION_ERROR', 'Tên tài liệu phải có ít nhất 3 ký tự');
+      const videoUrl = v('videoUrl');
+      if (videoUrl) { let yt = false; try { const x = new URL(videoUrl); yt = /^https?:$/.test(x.protocol) && /^(www\.|m\.|music\.)?(youtube\.com|youtube-nocookie\.com|youtu\.be)$/i.test(x.hostname); } catch {} if (!yt) throw err('VALIDATION_ERROR', 'Link video phải là đường dẫn YouTube hợp lệ'); }
       let url = v('url'); if (url || !draft) { let ok = false; try { ok = /^https?:$/.test(new URL(url).protocol); } catch {} if (!ok) throw err('VALIDATION_ERROR', 'Link không hợp lệ, cần bắt đầu bằng http:// hoặc https://'); }
       if (!draft) for (const [k, n] of [['author', 'tác giả'], ['subject', 'môn học'], ['grade', 'khối lớp'], ['topic', 'chủ đề'], ['type', 'loại tài liệu']]) if (!v(k)) throw err('VALIDATION_ERROR', 'Vui lòng nhập ' + n);
       const now = new Date().toISOString(), old = d.id ? tdocs().find((x) => x.id === d.id && x.ownerId === u.id) : null;
       if (d.id && !old) throw err('NOT_FOUND', 'Không tìm thấy tài liệu');
       if (old && !['DRAFT', 'REJECTED'].includes(old.status)) throw err('LOCKED', old.status === 'PENDING' ? 'Tài liệu đang chờ duyệt, không thể sửa' : 'Tài liệu đã đăng, không thể sửa');
-      const doc = { ...(old || {}), id: old ? old.id : 'td-' + Date.now().toString(36), ownerId: u.id, title: v('title'), author: v('author') || u.fullName, subject: v('subject'), grade: v('grade'), topic: v('topic'), type: v('type'), url, description: v('description'), status: draft ? 'DRAFT' : 'PENDING', rejectReason: null, updatedAt: now };
+      const doc = { ...(old || {}), id: old ? old.id : 'td-' + Date.now().toString(36), ownerId: u.id, title: v('title'), author: v('author') || u.fullName, subject: v('subject'), grade: v('grade'), topic: v('topic'), type: v('type'), url, videoUrl, description: v('description'), status: draft ? 'DRAFT' : 'PENDING', rejectReason: null, updatedAt: now };
       store.set('tdocs', old ? tdocs().map((x) => (x.id === doc.id ? doc : x)) : [...tdocs(), doc]);
       return { id: doc.id, status: doc.status };
     },
@@ -409,15 +442,27 @@ export const Api = {
   admin: {
     async dashboard() {
       await wait();
-      const pending = store.get('pending', PENDING);
-      return { totalResources: published().length, totalStudents: allUsers().filter((u) => u.role === 'STUDENT').length, totalTeachers: allUsers().filter((u) => u.role === 'TEACHER').length, totalAdmins: allUsers().filter((u) => u.role === 'ADMIN').length, pendingResources: pending.length + tdocs().filter((d) => d.status === 'PENDING').length, totalViews: published().reduce((s, r) => s + r.viewCount, 0) };
+      return { totalResources: published().length, totalStudents: allUsers().filter((u) => u.role === 'STUDENT').length, totalTeachers: allUsers().filter((u) => u.role === 'TEACHER').length, totalAdmins: allUsers().filter((u) => u.role === 'ADMIN').length, pendingResources: tdocs().filter((d) => d.status === 'PENDING').length, totalViews: published().reduce((s, r) => s + r.viewCount, 0) };
     },
-    async moderationQueue() { await wait(); const q = [...store.get('pending', PENDING), ...tdocs().filter((d) => d.status === 'PENDING').map((d) => ({ id: d.id, title: d.title, author: d.author, subject: d.subject, grade: d.grade, fileCount: 1 }))]; return { items: q, pagination: { page: 1, limit: 20, total: q.length, totalPages: 1 } }; },
-    async approve({ id }) { if (setTdoc(id, { status: 'PUBLISHED', publishedAt: new Date().toISOString(), rejectReason: null })) { logA('Duyệt tài liệu ' + id); return { ok: true }; } store.set('pending', store.get('pending', PENDING).filter((x) => x.id !== id)); return { ok: true }; },
-    async reject({ id, reason }) {
-      if (!reason || reason.length < 5) throw err('VALIDATION_ERROR', 'Lý do từ chối tối thiểu 5 ký tự');
-      if (setTdoc(id, { status: 'REJECTED', rejectReason: reason })) { logA('Từ chối tài liệu ' + id + ': ' + reason); return { ok: true }; }
-      store.set('pending', store.get('pending', PENDING).filter((x) => x.id !== id)); return { ok: true };
+    async moderationQueue() {
+      await wait(); adm();
+      const q = tdocs().filter((d) => d.status === 'PENDING').map((d) => ({ id: d.id, title: d.title, author: d.author, subject: d.subject, grade: d.grade, fileCount: d.url ? 1 : 0, hasUrl: !!d.url, hasVideo: !!d.videoUrl }));
+      return { items: q, pagination: { page: 1, limit: 50, total: q.length, totalPages: 1 } };
+    },
+    async approve({ id } = {}) {
+      await wait(120); adm(); const d = tdocs().find((x) => x.id === id);
+      if (!d) throw err('NOT_FOUND', 'Không tìm thấy tài liệu'); if (d.status !== 'PENDING') throw err('NOT_PENDING_REVIEW', 'Tài liệu không ở trạng thái chờ duyệt');
+      if (!d.url && !d.videoUrl) throw err('RESOURCE_NO_CONTENT', 'Tài liệu cần có link tài liệu hoặc video trước khi duyệt');
+      setTdoc(id, { status: 'PUBLISHED', publishedAt: new Date().toISOString(), rejectReason: null, updatedAt: new Date().toISOString() }); logA('Duyệt tài liệu ' + d.title);
+      return { ok: true, message: 'Đã duyệt tài liệu' };
+    },
+    async reject({ id, reason } = {}) {
+      await wait(120); adm(); const r = String(reason || '').trim();
+      if (r.length < 5) throw err('VALIDATION_ERROR', 'Lý do từ chối tối thiểu 5 ký tự');
+      const d = tdocs().find((x) => x.id === id); if (!d) throw err('NOT_FOUND', 'Không tìm thấy tài liệu');
+      if (d.status !== 'PENDING') throw err('NOT_PENDING_REVIEW', 'Tài liệu không ở trạng thái chờ duyệt');
+      setTdoc(id, { status: 'REJECTED', rejectReason: r, updatedAt: new Date().toISOString() }); logA('Từ chối tài liệu ' + d.title + ': ' + r);
+      return { ok: true, message: 'Đã từ chối tài liệu' };
     },
     async users({ q = '', role = '' } = {}) {
       adm(); const w = norm(q);
@@ -453,11 +498,45 @@ export const Api = {
       return { tempPassword };
     },
     async resources({ q = '', status = '' } = {}) {
-      adm(); const hid = hiddenIds(), w = norm(q), views = (id) => (RES.find((x) => x.id === id) || { viewCount: 0 }).viewCount + store.get('extraViews:' + id, 0);
-      const rows = [...RES.filter((r) => !deletedIds().includes(r.id)).map((r) => ({ id: r.id, title: r.title, subject: r.subjectName, grade: r.gradeName, author: r.authorName, status: hid.includes(r.id) ? 'HIDDEN' : 'PUBLISHED', own: false })),
-        ...tdocs().filter((d) => d.status !== 'DRAFT').map((d) => ({ id: d.id, title: d.title, subject: d.subject, grade: d.grade, author: d.author, status: d.status === 'PUBLISHED' && hid.includes(d.id) ? 'HIDDEN' : d.status, own: true }))]
+      const u = adm(), hid = hiddenIds(), w = norm(q), views = (id) => (RES.find((x) => x.id === id) || { viewCount: 0 }).viewCount + store.get('extraViews:' + id, 0);
+      const rows = [...RESV().filter((r) => !deletedIds().includes(r.id)).map((r) => ({ id: r.id, title: r.title, subject: r.subjectName, grade: r.gradeName, author: r.authorName, status: hid.includes(r.id) ? 'HIDDEN' : 'PUBLISHED' })),
+        ...tdocs().filter((d) => d.status !== 'DRAFT' || d.ownerId === u.id).map((d) => ({ id: d.id, title: d.title, subject: d.subject, grade: d.grade, author: d.author, status: d.status === 'PUBLISHED' && hid.includes(d.id) ? 'HIDDEN' : d.status }))]
         .filter((r) => (!status || r.status === status) && (!w || norm(r.title + ' ' + r.author + ' ' + r.subject).includes(w)));
       return { items: rows.map((r) => ({ ...r, views: views(r.id) })) };
+    },
+    /** Chi tiết 1 tài liệu (cả tài liệu mẫu lẫn tài liệu giáo viên / admin đăng). */
+    async resource(id) {
+      await wait(80); adm(); const hid = hiddenIds(), views = (x) => (RES.find((r) => r.id === x) || { viewCount: 0 }).viewCount + store.get('extraViews:' + x, 0);
+      const d = tdocs().find((x) => x.id === id);
+      if (d) {
+        const s = catAll('subjects').find((x) => x.name === d.subject), t = catAll('resourceTypes').find((x) => x.code === d.type), g = catAll('grades').find((x) => x.name === d.grade), o = allUsers().find((x) => x.id === d.ownerId);
+        return { id: d.id, title: d.title, author: d.author, subjectId: s ? s.id : '', subject: d.subject, gradeId: g ? g.id : d.grade, grade: d.grade, topic: d.topic || '', resourceTypeId: t ? t.id : '', type: t ? t.name : d.type,
+          description: d.description || '', url: d.url || '', videoUrl: d.videoUrl || '', status: d.status === 'PUBLISHED' && hid.includes(d.id) ? 'HIDDEN' : d.status, rejectReason: d.rejectReason || null,
+          views: views(d.id), createdAt: d.publishedAt || d.updatedAt, updatedAt: d.updatedAt, ownerName: d.ownerId === 'seed' ? d.author : (o ? o.fullName : d.author), files: [] };
+      }
+      const r = RESV().find((x) => x.id === id); if (!r || deletedIds().includes(id)) throw err('NOT_FOUND', 'Không tìm thấy tài liệu hoặc đã bị xóa');
+      return { id: r.id, title: r.title, author: r.authorName, subjectId: r.subjectId, subject: r.subjectName, gradeId: r.gradeId, grade: r.gradeName, topic: r.topicName || '', resourceTypeId: r.resourceTypeId, type: r.resourceTypeName,
+        description: r.description || '', url: r.onlineUrl || '', videoUrl: r.videoUrl || '', status: hid.includes(id) ? 'HIDDEN' : 'PUBLISHED', rejectReason: null, views: views(id),
+        createdAt: r.publishedAt, updatedAt: r.publishedAt, ownerName: r.authorName, files: r.files.map(({ name, format, size }) => ({ name, format, size })) };
+    },
+    async createResource(data = {}) {
+      await wait(200); const u = adm(), publish = !!data.publish, v = readAdminDoc(data, !publish);
+      const now = new Date().toISOString(), doc = { id: 'ad-' + Date.now().toString(36), ownerId: u.id, title: v.title, author: v.author, subject: v.subjectName, grade: v.gradeName, topic: v.topic, type: v.typeCode,
+        url: v.url, videoUrl: v.videoUrl, description: v.description, status: publish ? 'PUBLISHED' : 'DRAFT', rejectReason: null, publishedAt: publish ? now : null, updatedAt: now };
+      store.set('tdocs', [...tdocs(), doc]); logA((publish ? 'Đăng' : 'Lưu nháp') + ' tài liệu ' + doc.title);
+      return { id: doc.id, message: publish ? 'Đã đăng tài liệu' : 'Đã lưu bản nháp' };
+    },
+    async updateResource(id, data = {}) {
+      await wait(200); adm(); const d = tdocs().find((x) => x.id === id), seed = RES.find((x) => x.id === id);
+      if (!d && (!seed || deletedIds().includes(id))) throw err('NOT_FOUND', 'Không tìm thấy tài liệu');
+      const publish = !!data.publish && !!d && d.status !== 'PUBLISHED', willPublish = publish || (d ? d.status === 'PUBLISHED' : true);
+      const v = readAdminDoc(data, !willPublish, !!seed && seed.files.length > 0), now = new Date().toISOString();
+      if (d) {
+        setTdoc(id, { title: v.title, author: v.author, subject: v.subjectName, grade: v.gradeName, topic: v.topic, type: v.typeCode, url: v.url, videoUrl: v.videoUrl, description: v.description, updatedAt: now,
+          ...(publish ? { status: 'PUBLISHED', publishedAt: now, rejectReason: null } : {}) });
+      } else store.set('resOv:' + id, { title: v.title, author: v.author, subjectId: v.subjectId, gradeId: v.gradeId, resourceTypeId: v.resourceTypeId, topic: v.topic, url: v.url, videoUrl: v.videoUrl, description: v.description });
+      logA('Sửa tài liệu ' + v.title);
+      return { message: publish ? 'Đã lưu và đăng tài liệu' : 'Đã lưu thay đổi' };
     },
     async setResourceVisible(id, visible) {
       await wait(100); adm(); if (!RES.some((r) => r.id === id) && !tdocs().some((d) => d.id === id)) throw err('NOT_FOUND', 'Không tìm thấy tài liệu'); const h = hiddenIds().filter((x) => x !== id); store.set('hidden', visible ? h : [...h, id]); logA((visible ? 'Hiện' : 'Ẩn') + ' tài liệu ' + id);
@@ -465,8 +544,8 @@ export const Api = {
     },
     async deleteResource(id) {
       await wait(100); adm();
-      if (tdocs().some((d) => d.id === id)) { store.set('tdocs', tdocs().filter((d) => d.id !== id)); logA('Xóa tài liệu ' + id); return { message: 'Đã xóa tài liệu' }; }
-      if (!RES.some((r) => r.id === id)) throw err('NOT_FOUND', 'Không tìm thấy tài liệu hoặc đã bị xóa trước đó');
+      if (tdocs().some((d) => d.id === id)) { store.set('tdocs', tdocs().filter((d) => d.id !== id)); store.set('hidden', hiddenIds().filter((x) => x !== id)); logA('Xóa tài liệu ' + id); return { message: 'Đã xóa tài liệu' }; }
+      if (!RES.some((r) => r.id === id) || deletedIds().includes(id)) throw err('NOT_FOUND', 'Không tìm thấy tài liệu hoặc đã bị xóa trước đó');
       store.set('deletedRes', [...deletedIds().filter((x) => x !== id), id]); store.set('hidden', hiddenIds().filter((x) => x !== id)); logA('Xóa tài liệu ' + id);
       return { message: 'Đã xóa tài liệu' };
     },
@@ -491,7 +570,7 @@ export const Api = {
       adm(); const all = published(), td = tdocs(), by = (k) => Object.entries(all.reduce((m, r) => { const x = (m[r[k]] ||= { count: 0, views: 0 }); x.count++; x.views += r.viewCount; return m; }, {})).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.count - a.count || b.views - a.views);
       const us = allUsers(), n = (r) => us.filter((u) => u.role === r).length;
       return { users: { students: n('STUDENT'), teachers: n('TEACHER'), admins: n('ADMIN'), locked: us.filter((u) => u.status === 'LOCKED').length },
-        resources: { published: all.length, hidden: hiddenIds().filter((x) => !deletedIds().includes(x)).length, pending: td.filter((d) => d.status === 'PENDING').length + store.get('pending', PENDING).length, rejected: td.filter((d) => d.status === 'REJECTED').length },
+        resources: { published: all.length, hidden: hiddenIds().filter((x) => !deletedIds().includes(x)).length, pending: td.filter((d) => d.status === 'PENDING').length, rejected: td.filter((d) => d.status === 'REJECTED').length },
         totalViews: all.reduce((s, r) => s + r.viewCount, 0), bySubject: by('subjectName'), byType: by('resourceTypeName'), top: [...all].sort((a, b) => b.viewCount - a.viewCount).slice(0, 5).map((r) => ({ title: r.title, views: r.viewCount })) };
     },
     async auditLogs() { adm(); return { items: store.get('audit', []) }; },

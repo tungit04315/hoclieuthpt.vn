@@ -79,6 +79,15 @@ describe('Luồng ADMIN: dashboard → tạo → duyệt → danh mục → th�
     expect(ok.data.status).toBe('PUBLISHED'); expect(ok.data.statusHistory.length).toBeGreaterThanOrEqual(3);
     expect((await call('getResource', { id: newId }, s)).ok).toBe(true);
   });
+  it('CRUD link: videoUrl chỉ nhận YouTube; sửa/xóa link; học sinh thấy videoUrl', async () => {
+    expect((await call('adminUpdateResource', { id: newId, videoUrl: 'https://vimeo.com/1' }, a)).code).toBe('VALIDATION_ERROR');
+    const up = await call('adminUpdateResource', { id: newId, title: 'Tài liệu e2e (đã sửa)', videoUrl: 'https://youtu.be/abc123', onlineUrl: 'https://example.com/e2e-2' }, a);
+    expect(up.ok).toBe(true); expect(up.data.videoUrl).toBe('https://youtu.be/abc123');
+    const g = await call('getResource', { id: newId }, s); expect(g.data.videoUrl).toBe('https://youtu.be/abc123'); expect(g.data.onlineUrl).toBe('https://example.com/e2e-2');
+    const clr = await call('adminUpdateResource', { id: newId, videoUrl: '' }, a); expect(clr.data.videoUrl).toBeNull();
+    // tài liệu đang đăng không được xóa hết link (không còn nội dung để xem)
+    expect((await call('adminUpdateResource', { id: newId, onlineUrl: '' }, a)).code).toBe('RESOURCE_NO_CONTENT');
+  });
   it('chuyển trạng thái không hợp lệ => INVALID_STATUS_TRANSITION', async () => expect((await call('adminChangeResourceStatus', { id: newId, status: 'DRAFT' }, a)).code).toBe('INVALID_STATUS_TRANSITION'));
   it('ẩn → xóa mềm → khôi phục', async () => {
     await call('adminChangeResourceStatus', { id: newId, status: 'HIDDEN' }, a);

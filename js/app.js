@@ -279,7 +279,7 @@ function renderIntro(i) {
   const box = $('#hpIntro'); if (!i) return box.innerHTML = '<p class="empty">Chưa có nội dung giới thiệu.</p>';
   const row = (ic, t) => `<div class="irow"><i data-lucide="${ic}"></i><span>${t}</span></div>`;
   box.innerHTML = `<div class="hero"><i data-lucide="landmark"></i><h3>${esc(i.school)}</h3><p>${esc(i.tagline)}</p></div><p class="ptxt">${esc(i.about)}</p>
-    <div class="stats" style="grid-template-columns:repeat(3,1fr)">${(i.stats || []).map(s => `<div class="stat"><b>${num(s.n)}</b><span>${esc(s.l)}</span></div>`).join('')}</div>
+    <div class="stats" style="grid-template-columns:repeat(${Math.max(1, (i.stats || []).length)},1fr)">${(i.stats || []).map(s => `<div class="stat"><b>${num(s.n)}</b><span>${esc(s.l)}</span></div>`).join('')}</div>
     <h3 class="sub">Giờ mở cửa</h3>${(i.hours || []).map(h => row('clock', esc(h))).join('')}
     <h3 class="sub">Liên hệ</h3>${row('map-pin', esc(i.address))}${row('phone', `<a href="tel:${esc(String(i.phone).replace(/\s/g, ''))}">${esc(i.phone)}</a>`)}${row('mail', `<a href="mailto:${esc(i.email)}">${esc(i.email)}</a>`)}
     <h3 class="sub">Nội quy thư viện</h3><ul class="rules">${(i.rules || []).map(r => `<li>${esc(r)}</li>`).join('')}</ul>`;
@@ -357,6 +357,11 @@ async function toggleSave(id) {
 }
 
 /* ===== Chi tiết ===== */
+const isYoutube = v => { try { const u = new URL(v); return /^https?:$/.test(u.protocol) && /^(www\.|m\.|music\.)?(youtube\.com|youtube-nocookie\.com|youtu\.be)$/i.test(u.hostname) } catch { return false } };
+// Tương thích dữ liệu cũ: học liệu cũ chỉ có onlineUrl (có thể là link YouTube)
+const videoLink = r => r.videoUrl || (isYoutube(r.onlineUrl) ? r.onlineUrl : '');
+const docLink = r => (r.onlineUrl && r.onlineUrl !== videoLink(r)) ? r.onlineUrl : '';
+function openLink(url, msg) { window.open(url, '_blank', 'noopener'); toast(msg) }
 async function fetchFile(r, file, btn) {
   const old = btn && btn.innerHTML; if (btn) { btn.disabled = true; btn.textContent = 'Đang tạo liên kết…' }
   try {
@@ -375,16 +380,23 @@ function withFile(r, btn) {
 async function openDetail(id) {
   let r; try { r = await Api.resource(id) } catch (e) { return fail(e) }
   current = id; items.set(id, r); r.isFavorite ? saved.add(id) : saved.delete(id);
-  const k = kindOf(r), dur = fmtDur(r.durationSeconds);
+  const k = kindOf(r), dur = fmtDur(r.durationSeconds), vUrl = videoLink(r), dUrl = docLink(r);
   const row = (i, key, v) => `<div><i data-lucide="${i}"></i><dt>${key}</dt><dd>${esc(v)}</dd></div>`;
   $('#detailBody').innerHTML = `<div class="hero t-${k}">${k === 'Video' ? `<span class="play"><i data-lucide="play"></i></span>${dur ? `<span class="dur">${dur}</span>` : ''}` : '<i data-lucide="file-text"></i>'}</div>
-  <h2>${esc(r.title)}</h2><dl class="info">${row('user', 'Tác giả', r.author)}${row('book-open', 'Môn học', r.subject?.name)}${row('graduation-cap', 'Khối lớp', r.grade?.name)}${row('tag', 'Chủ đề', r.topic?.name || '—')}${row('file', 'Loại tài liệu', r.resourceType?.name)}${row('calendar', 'Ngày cập nhật', fmtDate(r.updatedAt || r.publishedAt))}${row('file-video', 'Định dạng tài nguyên', r.fileFormat || '—')}${row('link', 'Liên kết xem trực tuyến', r.onlineUrl ? 'Có' : 'Không có')}</dl>
+  <h2>${esc(r.title)}</h2><dl class="info">${row('user', 'Tác giả', r.author)}${row('book-open', 'Môn học', r.subject?.name)}${row('graduation-cap', 'Khối lớp', r.grade?.name)}${row('tag', 'Chủ đề', r.topic?.name || '—')}${row('file', 'Loại tài liệu', r.resourceType?.name)}${row('calendar', 'Ngày cập nhật', fmtDate(r.updatedAt || r.publishedAt))}${row('file-video', 'Định dạng tài nguyên', r.fileFormat || '—')}${row('youtube', 'Link video YouTube', vUrl ? 'Có' : 'Không có')}${row('link', 'Link tài liệu', dUrl || (r.files || []).length ? 'Có' : 'Không có')}</dl>
   <h3>Mô tả</h3><p class="desc">${esc(r.description || r.summary || 'Chưa có mô tả.')}</p>
   <div class="dbtns"><button class="btn" id="view"><i data-lucide="play"></i>Xem học liệu</button><div class="two"><button class="btn alt dl" id="dl"><i data-lucide="download"></i>Tải xuống</button><button class="btn line" id="save"><i data-lucide="bookmark"></i>Lưu vào tủ sách</button></div></div>`;
   $('#dBm').classList.toggle('on', saved.has(id));
-  $('#view').onclick = () => { Api.view(id).catch(() => {}); if (r.onlineUrl) { window.open(r.onlineUrl, '_blank', 'noopener'); toast('Đã mở liên kết học liệu') } else withFile(r) };
+  $('#view').onclick = () => { // Xem học liệu -> mở link YouTube
+    if (!vUrl) return toast('Học liệu này chưa có link video YouTube', 'info');
+    Api.view(id).catch(() => {}); openLink(vUrl, 'Đã mở video YouTube');
+  };
   $('#save').onclick = () => toggleSave(id);
-  $('#dl').onclick = e => withFile(r, e.currentTarget);
+  $('#dl').onclick = e => { // Tải xuống -> mở link tài liệu (dữ liệu cũ chỉ có tệp thì vẫn tải tệp)
+    if (dUrl) return openLink(dUrl, 'Đã mở link tài liệu');
+    if ((r.files || []).length) return withFile(r, e.currentTarget);
+    toast('Học liệu này chưa có link tài liệu để tải xuống', 'info');
+  };
   go('detail'); icons();
   Api.view(id).catch(() => {}); // ghi lượt xem (backend chống đếm trùng 30 phút)
 }
@@ -425,19 +437,25 @@ async function loadAdmin() {
 async function showQueue() {
   try {
     const q = await Api.admin.moderationQueue({});
-    openSheet('<h3>Kiểm duyệt tài liệu</h3>' + (q.items.map(r => `<div class="note"><div style="flex:1"><b>${esc(r.title)}</b><p class="cap">${esc(r.author)} · ${esc(r.subject)} · Khối ${esc(r.grade)} · ${r.fileCount} tệp</p><div class="two" style="margin-top:8px"><button class="btn alt" style="height:36px" data-rej="${esc(r.id)}">Từ chối</button><button class="btn" style="height:36px" data-ok="${esc(r.id)}">Duyệt</button></div></div></div>`).join('') || '<p class="empty">Không có tài liệu chờ duyệt.</p>'));
-    $$('#sheet [data-ok]').forEach(b => b.onclick = () => decide(() => Api.admin.approve({id: b.dataset.ok}), 'Đã duyệt tài liệu'));
-    $$('#sheet [data-rej]').forEach(b => b.onclick = () => {
-      const raw = prompt('Lý do từ chối (tối thiểu 5 ký tự):'); if (raw === null) return toast('Đã hủy, tài liệu chưa bị từ chối'); const reason = raw.trim(); if (reason.length < 5) return toast('Lý do từ chối cần tối thiểu 5 ký tự', 'err');
-      decide(() => Api.admin.reject({id: b.dataset.rej, reason}), 'Đã từ chối tài liệu');
-    });
+    openSheet('<h3>Kiểm duyệt tài liệu</h3>' + (q.items.map(r => `<div class="note"><div style="flex:1;min-width:0"><b>${esc(r.title)}</b><p class="cap">${esc(r.author)} · ${esc(r.subject)} · Khối ${esc(r.grade)}</p>
+      <p class="cap">${r.hasVideo ? '▶ Có video YouTube' : 'Không có video'} · ${r.hasUrl || r.fileCount ? 'Có link tài liệu' : 'Chưa có link tài liệu'}</p>
+      <div class="three"><button class="mini line" data-qv="${esc(r.id)}">Xem chi tiết</button><button class="mini line red" data-rej="${esc(r.id)}">Từ chối</button><button class="mini" data-ok="${esc(r.id)}">Duyệt</button></div></div></div>`).join('') || '<p class="empty">Không có tài liệu chờ duyệt.</p>'));
+    $$('#sheet [data-qv]').forEach(b => b.onclick = () => docDetail(b.dataset.qv, showQueue));
+    $$('#sheet [data-ok]').forEach(b => b.onclick = () => approveDoc(b.dataset.ok, showQueue));
+    $$('#sheet [data-rej]').forEach(b => b.onclick = () => rejectDoc(b.dataset.rej, showQueue));
   } catch (e) { fail(e) }
 }
-async function decide(fn, msg) { try { await fn(); toast(msg); loadAdmin(); showQueue() } catch (e) { fail(e) } }
+const approveDoc = (id, back) => decide(() => Api.admin.approve({id}), 'Đã duyệt tài liệu', back);
+function rejectDoc(id, back) {
+  const raw = prompt('Lý do từ chối (tối thiểu 5 ký tự):'); if (raw === null) return toast('Đã hủy, tài liệu chưa bị từ chối');
+  const reason = raw.trim(); if (reason.length < 5) return toast('Lý do từ chối cần tối thiểu 5 ký tự', 'err');
+  return decide(() => Api.admin.reject({id, reason}), 'Đã từ chối tài liệu', back);
+}
+async function decide(fn, msg, back) { try { await fn(); toast(msg); loadAdmin(); back && back() } catch (e) { fail(e) } }
 /* ===== Quản trị: tài khoản, tài liệu, danh mục, thống kê, nhật ký ===== */
 const ADM = () => Api.admin && Api.admin.users ? Api.admin : (toast('Quản trị đầy đủ chỉ có ở chế độ demo (mock-api.js)'), null);
 const RL = {STUDENT: 'Học sinh', TEACHER: 'Giáo viên', ADMIN: 'Quản trị'};
-const RS = {PUBLISHED: ['Đang hiển thị', 'grn'], HIDDEN: ['Đã ẩn', 'org'], PENDING: ['Chờ duyệt', 'org'], REJECTED: ['Bị từ chối', 'red']};
+const RS = {PUBLISHED: ['Đang hiển thị', 'grn'], HIDDEN: ['Đã ẩn', 'org'], PENDING: ['Chờ duyệt', 'org'], REJECTED: ['Bị từ chối', 'red'], DRAFT: ['Bản nháp', 'org'], ARCHIVED: ['Lưu trữ', 'org']};
 const searchBox = (ph, extra = '') => `<div class="field"><i data-lucide="search"></i><input id="aq" placeholder="${ph}" aria-label="${ph}"></div>${extra}<div id="aList"></div>`;
 let aTimer;
 const bindList = render => { $('#aq').oninput = () => { clearTimeout(aTimer); aTimer = setTimeout(render, 250) }; render() };
@@ -483,20 +501,74 @@ function newUserSheet() {
 }
 function resSheet() {
   const A = ADM(); if (!A) return;
-  openSheet('<h3>Quản lý tài liệu</h3>' + searchBox('Tìm tên, tác giả, môn học…', `<div class="two"><select id="as" aria-label="Trạng thái"><option value="">Mọi trạng thái</option>${Object.entries(RS).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join('')}</select><span></span></div>`));
+  openSheet('<h3>Quản lý tài liệu</h3>' + searchBox('Tìm tên, tác giả, môn học…', `<div class="two"><select id="as" aria-label="Trạng thái"><option value="">Mọi trạng thái</option>${Object.entries(RS).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join('')}</select><button class="mini" id="aNewDoc">+ Thêm tài liệu</button></div>`));
   const render = async () => {
     try {
       const r = await A.resources({q: $('#aq').value, status: $('#as').value});
-      $('#aList').innerHTML = r.items.map(d => `<div class="book"><div style="flex:1"><h4>${esc(d.title)}</h4><p class="cap">${esc(d.author)} · ${esc(d.subject)} · Khối ${esc(d.grade)} · ${num(d.views)} lượt xem</p>
-        <div class="act"><span class="badge ${RS[d.status][1]}">${RS[d.status][0]}</span>${['PUBLISHED', 'HIDDEN'].includes(d.status) ? `<button class="mini line" data-vis="${d.id}" data-to="${d.status === 'HIDDEN' ? 1 : 0}">${d.status === 'HIDDEN' ? 'Hiện lại' : 'Ẩn'}</button>` : ''}<button class="mini line" data-del="${d.id}">Xóa</button></div></div></div>`).join('') || '<p class="empty">Không có tài liệu phù hợp</p>';
+      $('#aList').innerHTML = r.items.map(d => `<div class="book"><div style="flex:1;min-width:0"><h4>${esc(d.title)}</h4><p class="cap">${esc(d.author)} · ${esc(d.subject)} · Khối ${esc(d.grade)} · ${num(d.views)} lượt xem</p>
+        <div class="act"><span class="badge ${(RS[d.status] || RS.DRAFT)[1]}">${(RS[d.status] || [d.status])[0]}</span><button class="mini line" data-det="${esc(d.id)}">Chi tiết</button><button class="mini line" data-edit="${esc(d.id)}">Sửa</button>${['PUBLISHED', 'HIDDEN'].includes(d.status) ? `<button class="mini line" data-vis="${esc(d.id)}" data-to="${d.status === 'HIDDEN' ? 1 : 0}">${d.status === 'HIDDEN' ? 'Hiện lại' : 'Ẩn'}</button>` : ''}<button class="mini line red" data-del="${esc(d.id)}">Xóa</button></div></div></div>`).join('') || '<p class="empty">Không có tài liệu phù hợp</p>';
     } catch (e) { fail(e) }
   };
-  bindList(render); $('#as').onchange = render;
+  bindList(render); $('#as').onchange = render; $('#aNewDoc').onclick = () => docForm(null, resSheet, resSheet);
   $('#aList').onclick = e => {
-    const v = e.target.closest('[data-vis]'), d = e.target.closest('[data-del]');
+    const v = e.target.closest('[data-vis]'), d = e.target.closest('[data-del]'), i = e.target.closest('[data-det]'), ed = e.target.closest('[data-edit]');
+    if (i) docDetail(i.dataset.det, resSheet);
+    if (ed) docForm(ed.dataset.edit, resSheet, resSheet);
     if (v) doAdm(() => A.setResourceVisible(v.dataset.vis, v.dataset.to === '1'), render);
     if (d) { if (confirm('Xóa tài liệu này? Học sinh sẽ không còn thấy tài liệu.')) doAdm(() => A.deleteResource(d.dataset.del), render); else toast('Đã hủy xóa tài liệu') }
   };
+}
+/** Xem chi tiết 1 tài liệu (dùng chung cho Kiểm duyệt và Quản lý tài liệu). `back` = hàm quay về danh sách đã mở. */
+async function docDetail(id, back) {
+  const A = ADM(); if (!A) return;
+  let d; try { d = await A.resource(id) } catch (e) { return fail(e) }
+  const st = RS[d.status] || RS.DRAFT, row = (k, v) => `<div class="drow"><span>${k}</span><b>${v}</b></div>`;
+  const open = (u, label) => u && isUrl(u) ? `<button class="mini line" data-lnk="${esc(u)}">${label}</button>` : '<span class="cap">Chưa có</span>';
+  openSheet(`<button class="mini line" id="ddBack">‹ Quay lại</button><h3 style="margin:10px 0 6px">${esc(d.title)}</h3><span class="badge ${st[1]}">${st[0]}</span>
+    ${d.rejectReason ? `<p class="hint">Lý do từ chối: ${esc(d.rejectReason)}</p>` : ''}
+    <div style="margin:8px 0">${row('Tác giả', esc(d.author))}${row('Môn học', esc(d.subject))}${row('Khối lớp', esc(d.grade))}${row('Chủ đề', esc(d.topic || '—'))}${row('Loại tài liệu', esc(d.type || '—'))}${row('Người đăng', esc(d.ownerName || '—'))}
+      ${row('Lượt xem', num(d.views))}${row('Cập nhật', fmtDate(d.updatedAt))}${row('Link video YouTube', open(d.videoUrl, 'Mở video'))}${row('Link tài liệu', open(d.url, 'Mở tài liệu'))}
+      ${row('Tệp đính kèm', (d.files || []).length ? (d.files || []).map(f => esc(f.name)).join(', ') : 'Không có')}</div>
+    <h4 style="margin:10px 0 4px">Mô tả</h4><p class="desc">${esc(d.description || 'Chưa có mô tả.')}</p>
+    ${d.status === 'PENDING' ? '<div class="two"><button class="btn alt red" id="ddRej">Từ chối</button><button class="btn" id="ddOk">Duyệt</button></div>' : ''}
+    <div class="dbar"><button class="mini line" id="ddEdit">Sửa</button>${['PUBLISHED', 'HIDDEN'].includes(d.status) ? `<button class="mini line" id="ddVis">${d.status === 'HIDDEN' ? 'Hiện lại' : 'Ẩn'}</button>` : ''}<button class="mini line red" id="ddDel">Xóa</button></div>`);
+  const again = () => docDetail(id, back);
+  $$('#sheet [data-lnk]').forEach(b => b.onclick = () => openLink(b.dataset.lnk, 'Đã mở liên kết'));
+  $('#ddBack').onclick = () => back && back();
+  $('#ddEdit').onclick = () => docForm(id, again, again);
+  if ($('#ddOk')) $('#ddOk').onclick = () => approveDoc(id, back);
+  if ($('#ddRej')) $('#ddRej').onclick = () => rejectDoc(id, back);
+  if ($('#ddVis')) $('#ddVis').onclick = () => doAdm(() => A.setResourceVisible(id, d.status === 'HIDDEN'), again);
+  $('#ddDel').onclick = () => { if (confirm('Xóa tài liệu này? Học sinh sẽ không còn thấy tài liệu.')) doAdm(() => A.deleteResource(id), back); else toast('Đã hủy xóa tài liệu') };
+}
+/** Form thêm / sửa tài liệu của admin. id = null => thêm mới. */
+async function docForm(id, done, cancel) {
+  const A = ADM(); if (!A) return;
+  if (!(cat.subjects || []).length) await loadCatalogs();
+  let d = {title: '', author: '', subjectId: '', gradeId: '', resourceTypeId: '', topic: '', url: '', videoUrl: '', description: '', status: 'DRAFT'};
+  if (id) { try { d = await A.resource(id) } catch (e) { return fail(e) } }
+  const sel = (i, list, val, ph) => `<select id="${i}"><option value="">${ph}</option>${(list || []).map(x => `<option value="${esc(x.id)}" ${x.id === val ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>`;
+  const draftable = !id || d.status === 'DRAFT';
+  openSheet(`<button class="mini line" id="dfBack">‹ Quay lại</button><h3 style="margin:10px 0 8px">${id ? 'Sửa tài liệu' : 'Thêm tài liệu'}</h3>`
+    + lbl('Tên tài liệu *', cin('dfTitle', d.title, 'VD: Hàm số bậc hai và đồ thị parabol', 200)) + lbl('Tác giả *', cin('dfAuthor', d.author, 'VD: Cô Lan Anh', 120))
+    + `<div class="two2">${lbl('Môn học *', sel('dfSubject', cat.subjects, d.subjectId, 'Chọn môn'))}${lbl('Khối lớp *', sel('dfGrade', cat.grades, d.gradeId, 'Chọn khối'))}</div>`
+    + lbl('Loại tài liệu *', sel('dfType', cat.resourceTypes, d.resourceTypeId, 'Chọn loại')) + lbl('Chủ đề', cin('dfTopic', d.topic, 'VD: Hàm số, Vòng lặp…', 100))
+    + lbl('Link video YouTube (không bắt buộc)', cin('dfVideo', d.videoUrl, 'https://www.youtube.com/watch?v=…', 1000)) + '<p class="cap" style="margin:-4px 0 8px">Học sinh bấm "Xem học liệu" sẽ mở link này.</p>'
+    + lbl('Link tài liệu *', cin('dfUrl', d.url, 'https://…', 1000)) + '<p class="cap" style="margin:-4px 0 8px">Học sinh bấm "Tải xuống" sẽ mở link này.</p>'
+    + lbl('Mô tả', cta('dfDesc', d.description, 4, 5000))
+    + (draftable ? '<div class="two"><button class="btn alt" id="dfDraft">Lưu nháp</button><button class="btn" id="dfPub">Đăng ngay</button></div>' : '<button class="btn" id="dfSave">Lưu thay đổi</button>'));
+  const submit = (btn, publish) => {
+    const v = {title: $('#dfTitle').value.trim(), author: $('#dfAuthor').value.trim(), subjectId: $('#dfSubject').value, gradeId: $('#dfGrade').value, resourceTypeId: $('#dfType').value,
+      topic: $('#dfTopic').value.trim(), url: $('#dfUrl').value.trim(), videoUrl: $('#dfVideo').value.trim(), description: $('#dfDesc').value.trim(), publish};
+    if (v.title.length < 3) return toast('Tên tài liệu phải có ít nhất 3 ký tự', 'err');
+    if (v.url && !isUrl(v.url)) return toast('Link tài liệu phải bắt đầu bằng http:// hoặc https://', 'err');
+    if (v.videoUrl && !isYoutube(v.videoUrl)) return toast('Link video phải là đường dẫn YouTube hợp lệ (youtube.com hoặc youtu.be)', 'err');
+    return busy(btn, 'Đang lưu…', async () => { const r = id ? await A.updateResource(id, v) : await A.createResource(v); toast(r.message || 'Đã lưu'); loadAdmin(); done && done(r.id || id) });
+  };
+  $('#dfBack').onclick = () => cancel && cancel();
+  if ($('#dfDraft')) $('#dfDraft').onclick = e => submit(e.currentTarget, false);
+  if ($('#dfPub')) $('#dfPub').onclick = e => submit(e.currentTarget, true);
+  if ($('#dfSave')) $('#dfSave').onclick = e => submit(e.currentTarget, false);
 }
 
 /* ===== Quản trị: nội dung trang chủ học sinh (tab Giới thiệu + Hướng dẫn) ===== */
@@ -627,20 +699,19 @@ async function loadTeacher() {
 }
 const isUrl = v => { try { return /^https?:$/.test(new URL(v).protocol) } catch { return false } };
 const f = $('#tForm'), val = n => f.elements[n].value.trim();
-$('[name=ty]', f).onchange = e => {
-  const v = e.target.value === 'VIDEO';
-  $('#uLabel').textContent = v ? 'Link video *' : 'Link tài liệu *';
-  $('#uHint').textContent = v ? 'Dán đường dẫn YouTube, Vimeo hoặc Google Drive của video. Link phải cho phép ai có link đều xem được.' : 'Dán đường dẫn Google Drive, OneDrive hoặc trang web chứa tài liệu. Link phải cho phép ai có link đều xem được.';
-};
+$('[name=ty]', f).onchange = () => {}; // giữ lại để resetForm/sửa gọi được; 2 ô link luôn hiển thị cố định
 function resetForm() { f.reset(); $('#editId').value = ''; $('#tFormTitle').textContent = 'Thêm học liệu mới'; $$('#tForm .err').forEach(x => x.classList.remove('err')); $('[name=ty]', f).onchange({target: f.elements.ty}) }
 async function submitDoc(draft) {
   if (!tNeed()) return;
   let ok = true;
   $$('#tForm [name]:not([data-opt])').forEach(x => { const bad = draft ? (x.name === 't' && !x.value.trim()) || (x.name === 'u' && x.value.trim() && !isUrl(x.value.trim())) : !x.value.trim() || (x.name === 'u' && !isUrl(x.value.trim())); x.classList.toggle('err', bad); if (bad) ok = false });
-  if (!ok) return toast(draft ? 'Cần nhập tên tài liệu và link hợp lệ (https://…)' : 'Vui lòng điền đủ các trường (*) và link hợp lệ bắt đầu bằng https://');
+  const vEl = f.elements.v, vv = vEl.value.trim(), vBad = !!vv && !isYoutube(vv); // link YouTube không bắt buộc, nhưng nếu nhập thì phải đúng
+  vEl.classList.toggle('err', vBad);
+  if (vBad) return toast('Link video phải là đường dẫn YouTube hợp lệ (youtube.com hoặc youtu.be)');
+  if (!ok) return toast(draft ? 'Cần nhập tên tài liệu và link tài liệu hợp lệ (https://…)' : 'Vui lòng điền đủ các trường (*) và link tài liệu hợp lệ bắt đầu bằng https://');
   const btn = $(draft ? '#draft' : '#send'), old = btn.textContent; btn.disabled = true; btn.textContent = 'Đang lưu…';
   try {
-    await Api.teacher.save({id: $('#editId').value || undefined, draft, title: val('t'), author: val('a'), subject: val('s'), grade: val('g'), topic: val('c'), type: val('ty'), url: val('u'), description: val('d')});
+    await Api.teacher.save({id: $('#editId').value || undefined, draft, title: val('t'), author: val('a'), subject: val('s'), grade: val('g'), topic: val('c'), type: val('ty'), url: val('u'), videoUrl: val('v'), description: val('d')});
     toast(draft ? 'Đã lưu nháp' : 'Đã gửi kiểm duyệt'); resetForm(); loadTeacher();
   } catch (e) { fail(e) } finally { btn.disabled = false; btn.textContent = old }
 }
@@ -653,12 +724,12 @@ async function docsSheet(only) {
     const all = await Api.teacher.list(), ls = only ? all.filter(d => d.status === only) : all;
     openSheet(`<h3>${only ? 'Chờ kiểm duyệt' : 'Học liệu của tôi'}</h3>` + (ls.map(d => `<div class="book"><div><h4>${esc(d.title)}</h4><p class="cap">${esc(d.subject)} · Khối ${esc(d.grade)} · ${d.type === 'VIDEO' ? 'Video' : 'Tài liệu'}${d.status === 'PUBLISHED' ? ' · ' + num(d.views) + ' lượt xem' : ''}</p>
       <div class="act"><span class="badge ${ST[d.status][1]}">${ST[d.status][0]}</span>${d.rejectReason ? `<span class="cap">Lý do: ${esc(d.rejectReason)}</span>` : ''}</div>
-      <div class="act">${d.url ? `<button class="mini line" data-open="${esc(d.url)}">Mở link</button>` : ''}${['DRAFT', 'REJECTED'].includes(d.status) ? `<button class="mini line" data-edit="${d.id}">Sửa</button>` : ''}${d.status !== 'PUBLISHED' ? `<button class="mini line" data-del="${d.id}">Xóa</button>` : ''}</div></div></div>`).join('') || `<p class="empty">${only ? 'Không có tài liệu nào đang chờ duyệt' : 'Chưa có tài liệu. Hãy bấm "Thêm tài liệu" để đăng bài đầu tiên.'}</p>`));
+      <div class="act">${d.videoUrl ? `<button class="mini line" data-open="${esc(d.videoUrl)}">Mở video</button>` : ''}${d.url ? `<button class="mini line" data-open="${esc(d.url)}">Mở tài liệu</button>` : ''}${['DRAFT', 'REJECTED'].includes(d.status) ? `<button class="mini line" data-edit="${d.id}">Sửa</button>` : ''}${d.status !== 'PUBLISHED' ? `<button class="mini line" data-del="${d.id}">Xóa</button>` : ''}</div></div></div>`).join('') || `<p class="empty">${only ? 'Không có tài liệu nào đang chờ duyệt' : 'Chưa có tài liệu. Hãy bấm "Thêm tài liệu" để đăng bài đầu tiên.'}</p>`));
     $$('#sheet [data-open]').forEach(b => b.onclick = () => { window.open(b.dataset.open, '_blank', 'noopener'); toast('Đã mở liên kết tài liệu') });
     $$('#sheet [data-del]').forEach(b => b.onclick = async () => { if (!confirm('Xóa tài liệu này?')) return toast('Đã hủy xóa tài liệu'); try { await Api.teacher.remove(b.dataset.del); toast('Đã xóa tài liệu'); loadTeacher(); docsSheet(only) } catch (e) { fail(e) } });
     $$('#sheet [data-edit]').forEach(b => b.onclick = () => {
       const d = all.find(x => x.id === b.dataset.edit); if (!d) return;
-      Object.entries({t: d.title, a: d.author, s: d.subject, g: d.grade, c: d.topic, ty: d.type, u: d.url, d: d.description}).forEach(([k, v]) => f.elements[k].value = v || '');
+      Object.entries({t: d.title, a: d.author, s: d.subject, g: d.grade, c: d.topic, ty: d.type, u: d.url, v: d.videoUrl, d: d.description}).forEach(([k, v]) => f.elements[k].value = v || '');
       $('#editId').value = d.id; $('#tFormTitle').textContent = 'Sửa học liệu'; toast('Đang sửa: ' + d.title, 'info'); $('[name=ty]', f).onchange({target: f.elements.ty}); closeSheet(); f.scrollIntoView({behavior: 'smooth'});
     });
   } catch (e) { fail(e) }

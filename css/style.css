@@ -1282,3 +1282,14 @@ h3 {
 .aiform input { flex: 1; min-width: 0; height: 46px; padding: 0 16px; border: 1px solid #DCDCE8; border-radius: 23px; background: #fff }
 .aiform input:focus { border-color: var(--primary) }
 .aiform .send { flex: none; width: 46px; height: 46px; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center }
+
+/* ===== Quản trị tài liệu: 3 nút duyệt, chi tiết, form ===== */
+.three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px }
+.three .mini { padding: 0 6px; font-size: 12px; white-space: nowrap }
+.mini.line.red, .btn.alt.red { color: #C62828; border-color: #C62828 }
+.drow { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px }
+.drow > span { color: var(--muted, #6B7280); flex: 0 0 auto }
+.drow > b { text-align: right; font-weight: 600; min-width: 0; overflow-wrap: anywhere }
+.dbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px }
+.dbar .mini { flex: 1; min-width: 90px }
+#sheet .act { flex-wrap: wrap }

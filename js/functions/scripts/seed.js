@@ -32,7 +32,7 @@ async function main() {
       rules: ['Mang theo thẻ khi đến thư viện.', 'Giữ trật tự trong phòng đọc.'] },
     guide: [
       { title: 'Tìm học liệu', body: 'Vào tab Tìm kiếm, gõ tên bài, môn học hoặc tác giả (có dấu hay không dấu đều được) rồi dùng bộ lọc.', go: 'search', cta: 'Tìm ngay' },
-      { title: 'Xem, tải và lưu học liệu', body: 'Mở học liệu để xem mô tả; bấm tải nếu có tệp, hoặc chạm dấu trang để lưu vào Học liệu số.', go: 'library', cta: 'Mở Học liệu số' },
+      { title: 'Xem, tải và lưu học liệu', body: 'Mở học liệu để xem mô tả; bấm Xem học liệu để mở video YouTube, bấm Tải xuống để mở link tài liệu (nếu chưa có sẽ có thông báo), hoặc chạm dấu trang để lưu vào Học liệu số.', go: 'library', cta: 'Mở Học liệu số' },
     ],
   }, { merge: true });
 

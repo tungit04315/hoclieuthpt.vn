@@ -61,7 +61,7 @@ exports.getResource = endpoint(ANY, async ({ data, user }) => {
   const r = C.assertVisible(await db.doc(`resources/${id}`).get(), user);
   const fav = (await db.doc(`users/${user.uid}/bookmarks/${id}`).get()).exists;
   return {
-    ...C.toItem(r, fav), description: r.description ?? null, onlineUrl: r.onlineUrl ?? null,
+    ...C.toItem(r, fav), description: r.description ?? null, onlineUrl: r.onlineUrl ?? null, videoUrl: r.videoUrl ?? null,
     files: r.fileSummaries || [], // chỉ id/tên/định dạng/dung lượng — không có đường dẫn lưu trữ
     createdAt: r.createdAt, updatedAt: r.updatedAt, ...(user.role === 'ADMIN' ? { status: r.status } : {}),
   };

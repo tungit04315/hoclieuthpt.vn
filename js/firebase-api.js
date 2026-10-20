@@ -34,6 +34,29 @@ const call = (name) => async (data = {}) => {
   try { return (await httpsCallable(fns, name)(data)).data; } catch (e) { throw fail(e); }
 };
 const uid = () => auth.currentUser.uid;
+
+/* ---- Bộ chuyển đổi: giao diện admin dùng chung 1 kiểu dữ liệu với mock-api.js ---- */
+const fbStatus = (s) => (s === 'PENDING_REVIEW' || s === 'APPROVED' ? 'PENDING' : s); // UI chỉ có 1 trạng thái "Chờ duyệt"
+const fbDetail = (r) => ({
+  id: r.id, title: r.title, author: r.authorName, subjectId: r.subjectId, subject: r.subjectName, gradeId: r.gradeId, grade: r.gradeName,
+  topic: r.topicName || '', resourceTypeId: r.resourceTypeId, type: r.resourceTypeName, description: r.description || '',
+  url: r.onlineUrl || '', videoUrl: r.videoUrl || '', status: fbStatus(r.status),
+  rejectReason: r.status === 'REJECTED' ? ((r.reviews || []).find((x) => x.decision === 'REJECTED') || {}).reason || null : null,
+  views: r.viewCount || 0, createdAt: r.createdAt, updatedAt: r.updatedAt, ownerId: r.createdBy,
+  files: (r.fileSummaries || []).map(({ name, format, size }) => ({ name, format, size })),
+});
+const fbTopicId = async (subjectId, name) => { // chủ đề nhập tay -> id trong danh mục (không có thì bỏ trống)
+  const t = String(name || '').trim().toLowerCase(); if (!t) return null;
+  try {
+    const snap = await getDocs(query(collection(db, 'topics'), where('status', '==', 'ACTIVE')));
+    const m = snap.docs.find((d) => d.data().subjectId === subjectId && String(d.data().name).trim().toLowerCase() === t);
+    return m ? m.id : null;
+  } catch { return null; }
+};
+const fbBody = async (d) => ({
+  title: d.title, authorName: d.author, subjectId: d.subjectId, gradeId: d.gradeId, resourceTypeId: d.resourceTypeId,
+  topicId: await fbTopicId(d.subjectId, d.topic), description: d.description ?? '', onlineUrl: d.url ?? '', videoUrl: d.videoUrl ?? '',
+});
 const withErr = async (fn) => { try { return await fn(); } catch (e) { throw e.code && e.message && !e.name ? e : fail(e); } };
 
 export const Api = {
@@ -86,10 +109,31 @@ export const Api = {
     dashboard: call('adminDashboard'), statistics: call('adminStatistics'), auditLogs: call('adminListAuditLogs'),
     users: call('adminListUsers'), user: call('adminGetUser'), createUser: call('adminCreateUser'), updateUser: call('adminUpdateUser'),
     setUserStatus: call('adminSetUserStatus'), resetPassword: call('adminResetPassword'),
-    resources: call('adminListResources'), resource: call('adminGetResource'), createResource: call('adminCreateResource'),
-    updateResource: call('adminUpdateResource'), changeStatus: call('adminChangeResourceStatus'),
-    deleteResource: call('adminDeleteResource'), restoreResource: call('adminRestoreResource'),
-    moderationQueue: call('adminModerationQueue'), approve: call('adminApprove'), reject: call('adminReject'),
+    changeStatus: call('adminChangeResourceStatus'), restoreResource: call('adminRestoreResource'),
+    approve: call('adminApprove'), reject: call('adminReject'),
+    /** Danh sách tài liệu (UI: PENDING = chờ duyệt). */
+    async resources({ q, status } = {}) {
+      const r = await call('adminListResources')({ q: q || undefined, status: status ? (status === 'PENDING' ? 'PENDING_REVIEW' : status) : undefined, limit: 50 });
+      return { items: r.items.map((i) => ({ id: i.id, title: i.title, author: i.author, subject: i.subject && i.subject.name, grade: i.grade && i.grade.name, status: fbStatus(i.status), views: i.viewCount || 0 })), pagination: r.pagination };
+    },
+    resource: async (id) => fbDetail(await call('adminGetResource')({ id })),
+    async createResource(d) { // tạo nháp rồi (nếu chọn) đăng ngay
+      const r = await call('adminCreateResource')(await fbBody(d));
+      if (!d.publish) return { id: r.id, message: 'Đã lưu bản nháp' };
+      try { await call('adminChangeResourceStatus')({ id: r.id, status: 'PUBLISHED' }); return { id: r.id, message: 'Đã đăng tài liệu' }; }
+      catch (e) { return { id: r.id, message: 'Đã lưu nháp, chưa đăng được: ' + e.message }; }
+    },
+    async updateResource(id, d) {
+      await call('adminUpdateResource')({ id, ...(await fbBody(d)) });
+      if (d.publish) { try { await call('adminChangeResourceStatus')({ id, status: 'PUBLISHED' }); return { message: 'Đã lưu và đăng tài liệu' }; } catch (e) { return { message: 'Đã lưu, chưa đăng được: ' + e.message }; } }
+      return { message: 'Đã lưu thay đổi' };
+    },
+    async setResourceVisible(id, visible) { await call('adminChangeResourceStatus')({ id, status: visible ? 'PUBLISHED' : 'HIDDEN' }); return { message: visible ? 'Đã hiện tài liệu' : 'Đã ẩn tài liệu khỏi học sinh' }; },
+    async deleteResource(id) { await call('adminDeleteResource')({ id }); return { message: 'Đã xóa tài liệu' }; },
+    async moderationQueue() {
+      const r = await call('adminModerationQueue')({ limit: 50 });
+      return { ...r, items: r.items.map((i) => ({ id: i.id, title: i.title, author: i.author, subject: i.subject, grade: i.grade, fileCount: i.fileCount, hasUrl: !!i.hasOnlineUrl, hasVideo: !!i.hasVideoUrl })) };
+    },
     catalog: call('adminListCatalog'), saveCatalog: call('adminSaveCatalog'), disableCatalog: call('adminDisableCatalog'),
     homeContent: call('adminGetHomeContent'), saveHomeContent: call('adminSaveHomeContent'),
     requests: call('adminListResourceRequests'), updateRequest: call('adminUpdateResourceRequest'), // yêu cầu tài liệu từ học sinh

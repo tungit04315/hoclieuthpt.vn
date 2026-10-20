@@ -4,13 +4,20 @@ const { db, FieldValue, P, S, N, URLS, ENUM, pageArgs, slicePage, endpoint, ADMI
 const { bucket, signedUrl } = require('./lib/storage');
 
 const STATUSES = Object.keys(P.ALLOWED_TRANSITIONS);
+const CL = (v, f) => (v === '' || v === null ? null : f(v)); // '' hoặc null = xóa giá trị đang lưu
+const YT = (v) => { // link video YouTube (không bắt buộc)
+  const s = URLS(v, 'videoUrl'); if (!s) return s;
+  let h = ''; try { h = new URL(s).hostname } catch {}
+  if (!/^(www\.|m\.|music\.)?(youtube\.com|youtube-nocookie\.com|youtu\.be)$/i.test(h)) throw new P.AppError('VALIDATION_ERROR', 'videoUrl phải là link YouTube');
+  return s;
+};
 const snapOf = (r) => ({ title: r.title, status: r.status, subjectId: r.subjectId, gradeId: r.gradeId, topicId: r.topicId ?? null, resourceTypeId: r.resourceTypeId });
 const getRes = async (id, { deleted = false } = {}) => {
   const s = await db.doc(`resources/${id}`).get();
   if (!s.exists || (!deleted && s.data().deleted)) throw C.notFound();
   return { id: s.id, ...s.data() };
 };
-const hasContent = (r) => !!r.onlineUrl || (r.fileSummaries || []).length > 0;
+const hasContent = (r) => !!r.onlineUrl || !!r.videoUrl || (r.fileSummaries || []).length > 0;
 const assertContent = (r) => { if (!hasContent(r)) throw new P.AppError('RESOURCE_NO_CONTENT', 'Học liệu cần có file hoặc link xem trực tuyến trước khi xuất bản'); };
 const history = (w, id, from, to, uid, reason) =>
   w.set(db.collection(`resources/${id}/statusHistory`).doc(), { fromStatus: from, toStatus: to, changedBy: uid, reason: reason ?? null, createdAt: FieldValue.serverTimestamp() });
@@ -20,10 +27,10 @@ function readInput(d, partial) {
   const req = !partial;
   const o = {
     title: S(d.title, { required: req, max: 200, name: 'Tên tài liệu' }), authorName: S(d.authorName, { required: req, max: 120, name: 'Tác giả' }),
-    description: S(d.description, { max: 5000, name: 'Mô tả' }), subjectId: S(d.subjectId, { required: req, max: 100, name: 'Môn học' }),
-    gradeId: S(d.gradeId, { required: req, max: 10, name: 'Khối lớp' }), topicId: S(d.topicId, { max: 150 }),
+    description: CL(d.description, (x) => S(x, { max: 5000, name: 'Mô tả' })), subjectId: S(d.subjectId, { required: req, max: 100, name: 'Môn học' }),
+    gradeId: S(d.gradeId, { required: req, max: 10, name: 'Khối lớp' }), topicId: CL(d.topicId, (x) => S(x, { max: 150 })),
     resourceTypeId: S(d.resourceTypeId, { required: req, max: 100, name: 'Loại tài liệu' }),
-    thumbnailUrl: URLS(d.thumbnailUrl, 'thumbnailUrl'), onlineUrl: URLS(d.onlineUrl, 'onlineUrl'),
+    thumbnailUrl: URLS(d.thumbnailUrl, 'thumbnailUrl'), onlineUrl: CL(d.onlineUrl, (x) => URLS(x, 'onlineUrl')), videoUrl: CL(d.videoUrl, YT),
     durationSeconds: N(d.durationSeconds, { min: 0, max: 86400, name: 'durationSeconds' }),
   };
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
@@ -51,6 +58,7 @@ exports.adminUpdateResource = endpoint(ADMIN, async ({ data, user, ip }) => {
   const changes = readInput(data, true);
   if (changes.subjectId && changes.subjectId !== old.subjectId && changes.topicId === undefined) changes.topicId = null; // đổi môn thì bỏ chủ đề cũ
   const merged = { ...old, ...changes };
+  if (merged.status === 'PUBLISHED') assertContent(merged); // không cho xóa hết link/tệp của tài liệu đang đăng
   const upd = { ...changes, ...P.resolveCatalog(merged, await C.loadCatalogs()) };
   Object.assign(upd, P.derive({ ...merged, ...upd }), { updatedAt: FieldValue.serverTimestamp() });
   const batch = db.batch();
@@ -173,7 +181,7 @@ exports.adminModerationQueue = endpoint(ADMIN, async ({ data }) => {
   const snap = await db.collection('resources').where('status', '==', 'PENDING_REVIEW').get();
   const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((r) => !r.deleted).sort((a, b) => P.millis(a.createdAt) - P.millis(b.createdAt)); // cũ nhất duyệt trước
   const res = slicePage(rows, pageArgs(data));
-  res.items = res.items.map((r) => ({ id: r.id, title: r.title, author: r.authorName, subject: r.subjectName, grade: r.gradeName, resourceType: r.resourceTypeName, createdBy: r.createdBy, createdAt: r.createdAt, fileCount: (r.fileSummaries || []).length, hasOnlineUrl: !!r.onlineUrl }));
+  res.items = res.items.map((r) => ({ id: r.id, title: r.title, author: r.authorName, subject: r.subjectName, grade: r.gradeName, resourceType: r.resourceTypeName, createdBy: r.createdBy, createdAt: r.createdAt, fileCount: (r.fileSummaries || []).length, hasOnlineUrl: !!r.onlineUrl, hasVideoUrl: !!r.videoUrl }));
   return res;
 });
 
