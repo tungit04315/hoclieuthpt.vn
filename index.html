@@ -25,9 +25,11 @@
         <h2>Chào mừng trở lại</h2>
         <p class="lsub">Đăng nhập để học tập, tra cứu và quản lý học liệu.</p>
         <label class="flabel" for="acc">Tài khoản</label>
-        <div class="field" id="accBox"><i data-lucide="user"></i><input id="acc" autocomplete="username"
+        <div class="field" id="accBox"><i data-lucide="user"></i>
+          <input id="acc" autocomplete="username"
             autocapitalize="none" spellcheck="false" aria-describedby="accBoxErr"
-            placeholder="SĐT / Email / Mã học sinh" disable></div>
+            placeholder="SĐT / Email / Mã học sinh" readonly>
+        </div>
         <p class="ferr" id="accBoxErr" role="alert" hidden></p>
         <label class="flabel" for="pw">Mật khẩu</label>
         <div class="field" id="pwBox"><i data-lucide="lock"></i><input id="pw" type="password"
